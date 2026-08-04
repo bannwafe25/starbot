@@ -289,10 +289,10 @@ class Quotly:
             json=payload
         )
 
-        if r.status == 200:
-            return await r.read()
+        if r.status_code == 200:
+            return BytesIO(r.content)
 
-        raise QuotlyException(await r.json())
+        raise QuotlyException(r.text)
 
     @staticmethod
     async def make_carbonara(
