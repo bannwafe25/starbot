@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 def get_blacklist():
     try:
-        aa = "aHR0cHM6Ly9naXRodWIuY29tL3pwa2VtZW0tY29kZS9ibGFja2xpc3QuZ2l0"
+        aa = "aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3pwa2VtZW0tY29kZS9ibGFja2xpc3QvbWFpbi9ibGdjYXN0Lmpzb24="
         bb = b64decode(aa).decode("utf-8")
         res = requests.get(bb)
         if res.status_code == 200:
@@ -124,7 +124,7 @@ HELP_LOGO = os.environ.get(
     "https://files.catbox.moe/ru9lxz.jpg",
 )
 
-BLACKLIST_GCAST =["-1003996218782"]
+
 
 COOKIE_BING = os.environ.get(
     "COOKIE_BING",
