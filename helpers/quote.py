@@ -279,20 +279,18 @@ class Quotly:
             emoji_status = ""
         return emoji_status
 
-    class Quotly:
-    def __init__(self):
+    
+        def __init__(self):
         self.base_url = "https://quote-generator-green-three.vercel.app/"
 
     async def generate(self, params):
         try:
-            response = requests.post(
-                self.base_url,
-                json={
-                    "json": params
-                }
-            )
-
-            return response.json()
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    self.base_url,
+                    json={"json": params}
+                ) as response:
+                    return await response.json()
 
         except Exception as e:
             return {
@@ -302,12 +300,12 @@ class Quotly:
 
     async def get_image(self, image):
         try:
+            import base64
+
             image = image.replace(
                 "data:image/png;base64,",
                 ""
             )
-
-            import base64
 
             buffer = BytesIO(
                 base64.b64decode(image)
