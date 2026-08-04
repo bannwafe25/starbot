@@ -23,8 +23,15 @@ from requests.packages.urllib3.util.retry import Retry
 
 from config import API_MAELYN, SUDO_OWNERS
 from database import dB
-from helpers import (ApiImage, Emoji, Message, Quotly, Sticker, Tools, quotly,
-                     animate_proses)
+from helpers import (
+    ApiImage,
+    Emoji,
+    Message,
+    Quotly,
+    Sticker,
+    Tools,
+    animate_proses,
+)
 
 
 def download_website(url):
@@ -641,7 +648,7 @@ async def qoutly_cmd(client, message):
     }
 
 
-    image = await quotly(payload)
+    image = await Quotly.quotly(payload)
 
 
     await message.reply_photo(
