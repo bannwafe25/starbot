@@ -574,58 +574,80 @@ async def qrcode_cmd(client, message):
         )
 
 
-async def quote_cmd(client, message):
+async def consu(dok):
+    try:
+        with open(dok, "rb") as file:
+            data_bytes = file.read()
+        json_data = json.loads(data_bytes)
+        image_data_base64 = json_data.get("image")
+        if not image_data_base64:
+            raise ValueError("Tidak ada data gambar dalam JSON")
+        image_data = base64.b64decode(image_data_base64)
+        image_io = io.BytesIO(image_data)
+        image_io.name = "Quotly.webp"
+        return image_io
+    except Exception as e:
+        raise e
 
-    text = "Hello World"
 
-    username = message.from_user.first_name
-    avatar = (
-        f"https://t.me/i/userpic/320/"
-        f"{message.from_user.id}.jpg"
-    )
+async def qcolor_cmd(client, message):
+    em = Emoji(client)
+    await em.get()
+    iymek = f"\n•".join(Quotly.colors)
+    jadi = f"{em.sukses}Color for quotly\n•"
+    if len(iymek) > 4096:
+        with open("qcolor.txt", "w") as file:
+            file.write(iymek)
+        await message.reply_document(
+            "qcolor.txt", caption=f"{em.sukses}Color for quotly"
+        )
+        os.remove("qcolor.txt")
+        return
+    else:
+        return await message.reply(jadi + iymek)
 
-    params = {
+
+async def qoutly_cmd(client, message):
+
+    if not message.reply_to_message:
+        return await message.reply(
+            "Reply pesan dulu."
+        )
+
+
+    msg = message.reply_to_message
+
+    payload = {
         "type": "quote",
         "format": "png",
-        "backgroundColor": "#FFFFFF",
-        "width": 512,
-        "height": 768,
-        "scale": 2,
+
         "messages": [
             {
                 "entities": [],
+
                 "avatar": True,
+
                 "from": {
-                    "id": message.from_user.id,
-                    "name": username,
+                    "id": msg.from_user.id,
+                    "name": msg.from_user.first_name,
                     "photo": {
-                        "url": avatar
+                        "url": "https://i.pravatar.cc/300"
                     }
                 },
-                "text": text,
-                "replyMessage": {}
+
+                "text": msg.text or ""
             }
         ]
     }
 
-    qc = QuoteAPI()
 
-    result = await qc.generate(params)
+    image = await quotly(payload)
 
-    if not result.get("status"):
-        return await message.reply(
-            f"Gagal membuat quote\n{result.get('msg')}"
-        )
 
-    image = await qc.get_image(
-        result["data"]["image"]
+    await message.reply_photo(
+        image,
+        caption="✅ Quote dibuat"
     )
-
-    if image:
-        await message.reply_photo(
-            photo=image,
-            caption="Generated Quote"
-        )
 
 
 async def textgen_cmd(client, message):
