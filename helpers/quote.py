@@ -279,7 +279,7 @@ class Quotly:
             emoji_status = ""
         return emoji_status
 
-    class QuoteAPI:
+    class quotly:
     def __init__(self):
         self.base_url = "https://quote-generator-green-three.vercel.app/"
 
