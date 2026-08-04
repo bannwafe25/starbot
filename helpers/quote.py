@@ -280,7 +280,7 @@ class Quotly:
         return emoji_status
 
     
-    async def Quotly(payload):
+    async def quotly(payload):
         url = "https://bot.lyo.su/quote/generate.png"
 
         async with Tools.fetch.post(
