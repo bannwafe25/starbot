@@ -279,19 +279,22 @@ class Quotly:
             emoji_status = ""
         return emoji_status
 
+        async def quotly(payload):
+        url = "https://bot.lyo.su/quote/generate.png"
+
     async def Quotly(payload):
-    url = "https://bot.lyo.su/quote/generate.png"
+        url = "https://bot.lyo.su/quote/generate.png"
 
-    async with Tools.fetch.post(
-        url,
-        json=payload
-    ) as r:
+        async with Tools.fetch.post(
+            url,
+            json=payload
+        ) as r:
 
-        if not r.is_error:
-            return await r.read()
+            if not r.is_error:
+                return await r.read()
 
-        else:
-            raise QuotlyException(await r.json())
+            else:
+                raise QuotlyException(await r.json())
 
     @staticmethod
     async def make_carbonara(
