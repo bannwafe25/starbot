@@ -279,15 +279,47 @@ class Quotly:
             emoji_status = ""
         return emoji_status
 
-    async def quotly(payload):
-        r = await Tools.fetch.post(
-            "https://bot.lyo.su/quote/generate.png", json=payload
-        )
+    class QuoteAPI:
+    def __init__(self):
+        self.base_url = "https://quote-generator-green-three.vercel.app/"
 
-        if not r.is_error:
-            return r.read()
-        else:
-            raise QuotlyException(r.json())
+    async def generate(self, params):
+        try:
+            response = requests.post(
+                self.base_url,
+                json={
+                    "json": params
+                }
+            )
+
+            return response.json()
+
+        except Exception as e:
+            return {
+                "status": False,
+                "msg": str(e)
+            }
+
+    async def get_image(self, image):
+        try:
+            image = image.replace(
+                "data:image/png;base64,",
+                ""
+            )
+
+            import base64
+
+            buffer = BytesIO(
+                base64.b64decode(image)
+            )
+
+            buffer.name = "quote.png"
+            buffer.seek(0)
+
+            return buffer
+
+        except Exception:
+            return None
 
     @staticmethod
     async def make_carbonara(
