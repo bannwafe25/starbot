@@ -641,7 +641,7 @@ async def qoutly_cmd(client, message):
     }
 
 
-    image = await quotly(payload)
+    image = await Quotly(payload)
 
 
     await message.reply_photo(
