@@ -280,19 +280,19 @@ class Quotly:
         return emoji_status
 
     
+    @staticmethod
     async def quotly(payload):
         url = "https://bot.lyo.su/quote/generate.png"
 
-        async with Tools.fetch.post(
+        r = await Tools.fetch.post(
             url,
             json=payload
-        ) as r:
+        )
 
-            if not r.is_error:
-                return await r.read()
+        if r.status == 200:
+            return await r.read()
 
-            else:
-                raise QuotlyException(await r.json())
+        raise QuotlyException(await r.json())
 
     @staticmethod
     async def make_carbonara(
