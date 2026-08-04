@@ -12,7 +12,7 @@ from .loaders import (CheckUsers, ExpiredSewa, ExpiredUser, installPeer,
 from .message import Message
 from .misc import Sticker
 from .monitor import monitor
-from .quote import Quotly, QuotlyException
+from .quote import quotly, QuotlyException
 from .reads import ReadUser
 from .saweria import Saweria
 from .sosmed import SocialMedia, media_dl
@@ -23,4 +23,4 @@ from .times import get_time, start_time
 from .tools import HTML, ApiImage, Tools
 from .validator import MessageFilter, get_cached_list, reply_same_type, url_mmk
 from .ytdlp import YoutubeSearch, cookies, stream, telegram, youtube
-from .quote import Quotly, QuotlyException
+###from .quote import Quotly, QuotlyException
