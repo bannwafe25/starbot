@@ -12,7 +12,7 @@ from .loaders import (CheckUsers, ExpiredSewa, ExpiredUser, installPeer,
 from .message import Message
 from .misc import Sticker
 from .monitor import monitor
-from .quote import Quotly, QuotlyException, quotly
+from .quote import Quotly, QuotlyException
 from .reads import ReadUser
 from .saweria import Saweria
 from .sosmed import SocialMedia, media_dl
