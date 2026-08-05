@@ -93,58 +93,83 @@ async def brat_cmd(client, message):
             f"{em.gagal}**ERROR:**\n`{e}`"
         )
 
-
-async def bingai_cmd(client, message):
+async def bingimg_cmd(client, message):
     emo = Emoji(client)
     await emo.get()
+
     prompt = client.get_text(message)
 
     if not prompt:
         return await message.reply(
-            f"{emo.gagal}<b>Give the query you want to make!\n\nExample: \n<code>{message.text.split()[0]} Gambarkan lelaki Jepang tampan sedang duduk di bangku, mengenakan hoodie hitam dengan tulisan 'Star only Me' di bagian depan dan kacamata, sambil menghisap rokok dengan sikap santai. Latar belakang menampilkan hutan hujan yang rimbun, dengan cahaya lembut yang menerobos di antara dedaunan, menciptakan suasana tenang dan memikat. Tambahkan efek asap rokok yang melayang di udara, memberikan nuansa misterius pada gambar. Kualitas gambar harus tinggi (4k) dengan detail yang tajam dan warna alami yang kaya || Hindari elemen yang terlalu cerah, ekspresi wajah yang berlebihan, dan latar belakang yang terlalu ramai yang dapat mengalihkan perhatian dari sosok utama.</code></b>"
+            f"{emo.gagal}<b>Give the query you want to search!\n\n"
+            f"Example:\n<code>{message.text.split()[0]} kucing lucu</code></b>"
         )
-    pros = await message.reply(
-        f"{emo.proses}<b>Proses generate <code>{prompt}</code> ..</b>"
-    )
-    folder_name = f"downloads/{client.me.id}/"
-    try:
-        folder_name, imgs = await Bing.generate_images(folder_name, prompt)
-        if imgs:
-            media_group = []
-            for img in imgs:
-                if os.path.exists(img):
-                    caption = f"{emo.sukses}<b>Successfully generate image:</b>"
-                    media_group.append(InputMediaPhoto(media=img, caption=caption))
 
-            if media_group:
-                await client.send_media_group(
-                    chat_id=message.chat.id,
-                    media=media_group,
-                    reply_to_message_id=message.id,
+    pros = await message.reply(
+        f"{emo.proses}<b>Searching image <code>{prompt}</code> ..</b>"
+    )
+
+    try:
+        api = "https://api.siputzx.my.id/api/s/bimg"
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                api,
+                json={"query": prompt},
+                headers={"Content-Type": "application/json"}
+            ) as resp:
+                result = await resp.json()
+
+        if not result.get("status"):
+            return await pros.edit(
+                f"{emo.gagal}<b>Failed get image.</b>"
+            )
+
+        imgs = result.get("data", [])
+
+        if not imgs:
+            return await pros.edit(
+                f"{emo.gagal}<b>Images not found.</b>"
+            )
+
+        media_group = []
+
+        for img in imgs[:10]:
+            caption = None
+
+            if not media_group:
+                caption = (
+                    f"{emo.sukses}<b>Bing Image Result</b>\n\n"
+                    f"<blockquote>"
+                    f"🔎 <b>Query:</b> <code>{prompt}</code>\n"
+                    f"🖼️ <b>Result:</b> <code>{len(imgs)}</code> images\n"
+                    f"⚡ <b>Source:</b> Bing"
+                    f"</blockquote>"
                 )
 
-            await pros.delete()
+            media_group.append(
+                InputMediaPhoto(
+                    media=img,
+                    caption=caption
+                )
+            )
 
-            if folder_name:
-                shutil.rmtree(folder_name)
-            for img in imgs:
-                if os.path.exists(img):
-                    os.remove(img)
-        else:
-            return await pros.edit(
-                f"{emo.gagal}<b>Images are not found or failed generate images.</b>"
-            )
+        await client.send_media_group(
+            chat_id=message.chat.id,
+            media=media_group,
+            reply_to_message_id=message.id
+        )
+
+        await pros.delete()
+
     except Exception as e:
-        error_message = str(e)
-        logger.error(f"Bing error: {traceback.format_exc()}")
-        if "Failed to decode" in error_message:
-            return await pros.edit(
-                f"{emo.gagal}<b>Failed generate image.Please repeat again...</b>"
-            )
-        else:
-            return await pros.edit(
-                f"{emo.gagal}<b>Error:</b>\n <code>{error_message}</code>"
-            )
+        logger.error(f"Bing IMG error:\n{traceback.format_exc()}")
+
+        await pros.edit(
+            f"{emo.gagal}<b>Error:</b>\n"
+            f"<blockquote><code>{e}</code></blockquote>"
+        )
+
     return
 
 
