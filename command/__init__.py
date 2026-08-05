@@ -21,7 +21,7 @@ from .broadcast_command import (addbcdb_cmd, addbl_cmd, bc_cmd, bcerror_cmd,
 from .buttons_command import button_cmd, buttonch_cmd
 from .calculator_command import (calculator_callback, inline_calculator,
                                  kalkulator_cmd)
-from .callback_command import (an1cb, bola_date, bola_matches, callback_alert,
+from .callback_command import (an1cb, callback_alert,
                                cb_help, cb_markdown, cb_notes, cek_expired_cb,
                                cine_plax, closed_bot, closed_user,
                                contact_admins, copy_msg, del_userbot, dl_spot,
@@ -60,7 +60,7 @@ from .gruplog_command import (ADD_ME, EDITED, LOGS_GROUP, REP_BLOCK, REPLY,
                               logs_cmd)
 from .help_command import general_plugins
 from .inline_command import (alive_inline, apkan1_cmd, apkmoddy_cmd, ask_cmd,
-                             bola_cmd, button_inline, cardinfo_cmd, cat_cmd,
+                             button_inline, cardinfo_cmd, cat_cmd,
                              catur_cmd, detcnn_cmd, font_cmd, game_cmd, get_inline_help,
                              get_inline_note, help_cmd, infoinline_cmd,
                              inline_afk, inline_anime, inline_apkan1,
