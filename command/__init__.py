@@ -42,7 +42,7 @@ from .chats_command import (all_cmd, bl_leave, cc_cmd, cekmember_cmd,
                             leave_cmd, leave_mute, locks_cmd, lockunlock_cmd,
                             tagadmins_cmd, tg_lock, unbl_leave)
 from .clone_command import clone_cmd
-from .convert_command import (blur_cmd, gif_cmd, img2text_cmd, lang_cmd,
+from .convert_command import (blur_cmd, gif_cmd, lang_cmd,
                               miror_cmd, mmf_cmd, negative_cmd, pic_cmd,
                               qcolor_cmd, qoutly_cmd, qrcode_cmd, rbg_cmd,
                               setlang_cmd, stt_cmd, textgen_cmd, tiny_cmd,
