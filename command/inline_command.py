@@ -27,7 +27,7 @@ from pyrogram.types import (Chat, InlineKeyboardButton, InlineKeyboardMarkup,
                             InputTextMessageContent, User)
 
 from clients import bot, star
-from config import (API_MAELYN, BOT_NAME, HELPABLE, SUDO_OWNERS, URL_LOGO,
+from config import (BOT_NAME, HELPABLE, SUDO_OWNERS, URL_LOGO,
                     USENAME_OWNER)
 from database import dB, state
 from helpers import (ButtonUtils, Emoji, Tools, get_time, paginate_modules,
@@ -243,58 +243,7 @@ async def font_cmd(client, message):
         return await pros.edit(f"{emo.gagal}<b>Error:</b>\n<code>{str(error)}</code>")
 
 
-async def donghua_cmd(_, message):
-    try:
-        url = f"https://api.maelyn.sbs/api/donghuafilm/lastupdate?apikey={API_MAELYN}"
-        response = await Tools.fetch.get(url)
-        if response.status_code == 200:
-            data = response.json()["result"]
-            uniq = f"{str(uuid4())}"
-            state.set(uniq.split("-")[0], "donghua", data)
-            try:
-                inline = await ButtonUtils.send_inline_bot_result(
-                    message,
-                    message.chat.id,
-                    bot.me.username,
-                    f"inline_donghua {uniq.split('-')[0]}",
-                )
-                if inline:
-                    return await message.delete()
-            except Exception as er:
-                return await message.reply(f"**ERROR**: {str(er)}")
-        else:
-            return await message.reply(
-                f"**Error with status `{response.status_code}`**"
-            )
-    except Exception as er:
-        return await message.reply(f"**ERROR**: {str(er)}")
 
-
-async def comic_cmd(_, message):
-    try:
-        url = f"https://api.maelyn.sbs/api/komiku/lastupdate?apikey={API_MAELYN}"
-        response = await Tools.fetch.get(url)
-        if response.status_code == 200:
-            data = response.json()["result"]
-            uniq = f"{str(uuid4())}"
-            state.set(uniq.split("-")[0], "comic", data)
-            try:
-                inline = await ButtonUtils.send_inline_bot_result(
-                    message,
-                    message.chat.id,
-                    bot.me.username,
-                    f"inline_comic {uniq.split('-')[0]}",
-                )
-                if inline:
-                    return await message.delete()
-            except Exception as er:
-                return await message.reply(f"**ERROR**: {str(er)}")
-        else:
-            return await message.reply(
-                f"**Error with status `{response.status_code}`**"
-            )
-    except Exception as er:
-        return await message.reply(f"**ERROR**: {str(er)}")
 
 
 async def cardinfo_cmd(_, message):
@@ -1032,50 +981,6 @@ async def inline_apkmoddy(results, inline):
         return results
     except Exception:
         logger.error(f"Inline Apkinfo: {traceback.format_exc()}")
-
-
-async def inline_bola(resultss, inline_query):
-    url = f"https://api.maelyn.sbs/api/jadwalbola?apikey={API_MAELYN}"
-    result = await Tools.fetch.get(url)
-    uniq = str(inline_query.query.split()[1])
-    if result.status_code == 200:
-        data = result.json()
-        if data["status"] == "Success":
-            buttons = []
-            temp_row = []
-            state.set(uniq, "jadwal_bola", data["result"])
-            for liga_date in data["result"]:
-                button = InlineKeyboardButton(
-                    text=liga_date["LigaDate"],
-                    callback_data=f"bola_matches {uniq} {liga_date['LigaDate']}",
-                )
-                temp_row.append(button)
-
-                if len(temp_row) == 3:
-                    buttons.append(temp_row)
-                    temp_row = []
-
-            if temp_row:
-                buttons.append(temp_row)
-            last_row = [
-                InlineKeyboardButton(text="« Back", callback_data=f"bola_date {uniq}"),
-                InlineKeyboardButton(
-                    text="Close", callback_data=f"close inline_bola {uniq}"
-                ),
-            ]
-            buttons.append(last_row)
-            keyboard = InlineKeyboardMarkup(buttons)
-
-            resultss.append(
-                InlineQueryResultArticle(
-                    title="Football Schedule",
-                    reply_markup=keyboard,
-                    input_message_content=InputTextMessageContent(
-                        "<b>Select a date to view football matches:</b>"
-                    ),
-                )
-            )
-    return resultss
 
 
 async def inline_cat(result, inline_query):
