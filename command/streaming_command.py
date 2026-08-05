@@ -12,7 +12,7 @@ from helpers import (Emoji, Spotify, Tools, YoutubeSearch, animate_proses,
 from logs import logger
 
 
-cookie_path = "/root/storage/cookies/youtube/"
+cookie_path = "/storage/cookies/youtube/"
 if not os.path.exists(cookie_path):
     os.makedirs(cookie_path, exist_ok=True)
 
