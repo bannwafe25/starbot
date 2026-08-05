@@ -1,7 +1,6 @@
 import traceback
 import random
-from command import (an1cb, back_home, bola_date, bola_matches,
-                     calculator_callback, callback_alert, cancel_payment,
+from command import (an1cb, back_home, calculator_callback, callback_alert, cancel_payment,
                      cb_help, cb_markdown, cb_notes, cek_expired_cb,
                      cek_status_akun, chat_gpt, chose_plan, cine_plax,
                      closed_bot, closed_user, confirm_pay, contact_admins,
@@ -241,10 +240,6 @@ async def _(client, callback):
             return await nxt_spotify(client, callback)
         elif query.startswith("dlspot"):
             return await dl_spot(client, callback)
-        elif query.startswith("bola_date"):
-            return await bola_date(client, callback)
-        elif query.startswith("bola_matches"):
-            return await bola_matches(client, callback)
         elif query.startswith("restanime_"):
             return await rest_anime(client, callback)
         elif query.startswith("restdonghua_"):
