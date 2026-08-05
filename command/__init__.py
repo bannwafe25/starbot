@@ -33,8 +33,6 @@ from .callback_command import (an1cb, bola_date, bola_matches, callback_alert,
                                rest_donghua, selected_topic, tools_userbot,
                                viewchord, viewgempa, drakorcb)
 from .carbon_command import carbon_cmd
-from .chatbot_command import (ChatbotTask, auto_reply_trigger, chatbot_cmd,
-                              chatbot_trigger)
 from .chats_command import (all_cmd, bl_leave, cc_cmd, cekmember_cmd,
                             cekmsg_cmd, cekonline_cmd, cleardb_leave,
                             create_cmd, current_chat_permissions, deleter_cmd,
