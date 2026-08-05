@@ -6,6 +6,7 @@ from gc import get_objects
 
 import requests
 import wget
+from pyrogram import filters
 from pyrogram import enums, raw
 from pyrogram.errors import FloodWait, MessageNotModified
 from pyrogram.helpers import ikb
@@ -17,7 +18,7 @@ from pyrogram.utils import unpack_inline_message_id
 from pytz import timezone
 
 from clients import bot,star
-from config import (API_MAELYN, BOT_NAME, COPY_ID, HELPABLE, LOG_SELLER,
+from config import (BOT_NAME, COPY_ID, HELPABLE, LOG_SELLER,
                     SUDO_OWNERS, USENAME_OWNER)
 from database import dB, state, db
 from helpers import (ButtonUtils, Emoji, Message, Spotify, Tools, gens_font,
@@ -90,6 +91,28 @@ async def callback_alert(_, callback_query):
         alert_text = alert_text.replace(r"\n", "\n")
     return await callback_query.answer(text=alert_text, show_alert=True)
 
+async def cancel_task_callback(client, callback_query):
+    task_id = callback_query.matches[0].group(1)
+
+    if not task.is_active(task_id):
+        return await callback_query.answer(
+            "Task sudah tidak berjalan!",
+            show_alert=True
+        )
+
+    task.end_task(task_id)
+
+    await callback_query.answer(
+        "Task berhasil dibatalkan!",
+        show_alert=True
+    )
+
+    try:
+        await callback_query.message.edit(
+            "❌ <b>Broadcast task cancelled.</b>"
+        )
+    except Exception:
+        pass
 
 async def cb_markdown(_, callback_query):
     await callback_query.answer()
@@ -1077,171 +1100,6 @@ async def news_(_, callback_query):
         media=InputMediaPhoto(media=thumb, caption=judul),
         reply_markup=reply_markup,
     )
-
-
-async def chatai_with_chatgpt_normal(_, query, uniq):
-    data = state.get(uniq, "chatai")
-    prompt = data["prompt"]
-    get_id = data["idm"]
-    message = [obj for obj in get_objects() if id(obj) == get_id][0]
-    message.from_user.id
-    chat_id = message.chat.id
-    ids = (unpack_inline_message_id(query.inline_message_id)).id
-    try:
-        await message._client.delete_messages(
-            message.chat.id,
-            ids,
-        )
-    except Exception:
-        pass
-    data_json = [
-        {
-            "role": "system",
-            "content": "Kamu adalah asisten paling canggih yang berbahasa Indonesia gaul, dan jangan gunakan bahasa inggris sebelum saya memulai duluan.",
-        },
-        {"role": "user", "content": prompt},
-    ]
-    while True:
-        try:
-            url = "https://api.siputzx.my.id/api/ai/gpt3"
-            r = await Tools.fetch.post(url, json=data_json)
-            if r.status_code == 200:
-                result = r.json().get("data")
-                if len(result) > 4096:
-                    with open(f"{prompt.split()[1]}.txt", "wb") as file:
-                        file.write(result.encode("utf-8"))
-                    reply = await message._client.send_document(
-                        chat_id, f"{prompt.split()[1]}.txt"
-                    )
-                    next_message = await message._client.ask(
-                        chat_id,
-                        f"<b><u>Chat with ChatGpt</u></b>\nQuestion:</b>\n<blockquote>{prompt}</blockquote>\n\n**Type `stopped ask` to end the conversation.**",
-                        reply_to_message_id=reply.id,
-                        timeout=300,
-                    )
-                else:
-                    if len(result) > 496:
-                        caption = f"<blockquote expandable>{result}</blockquote>"
-                    else:
-                        caption = f"<blockquote>{result}</blockquote>"
-                    next_message = await message._client.ask(
-                        chat_id,
-                        f"<b><u>Chat with ChatGpt</u></b>\n<b>Question:\n<blockquote>{prompt}</blockquote>\n\nAnswer:\n</b>{caption}\n\n**Type `stopped ask` to end the conversation.**",
-                    )
-                    if next_message.text.lower() == "stopped ask":
-                        await next_message.reply(f"**Conversation ended.**")
-                        break
-                    prompt = next_message.text
-            else:
-                return await message.reply("<b>Please try again later..</b>")
-        except Exception:
-            logger.error(traceback.format_exc())
-            return await message.reply("<b>Please try again later..</b>")
-
-
-async def chat_gpt(client, query):
-    if not query.from_user:
-        return await query.answer("ANAK ANJING!!", True)
-    if query.from_user.id not in star._get_my_id:
-        return await query.answer("GW BUNTUNGIN TANGAN LO YA MEMEK", True)
-    mode = str(query.data.split("_")[1])
-    uniq = str(query.data.split("_")[2])
-    data = state.get(uniq, "chatai")
-    if not data:
-        return await query.answer(
-            "Data not found, please create new conversation.", True
-        )
-    if mode == "normal":
-        return await chatai_with_chatgpt_normal(client, query, uniq)
-    elif mode == "audio":
-        msg = "<b>Please select model voice first.</b>"
-        models = [
-            "alloy",
-            "echo",
-            "fable",
-            "onyx",
-            "nova",
-            "shimmer",
-            "coral",
-            "verse",
-            "ballad",
-            "ash",
-            "sage",
-            "amuch",
-            "dan",
-            "elan",
-        ]
-
-        buttons = []
-        row = []
-        for idx, model in enumerate(models, 1):
-            row.append(
-                Ikb(model.capitalize(), callback_data=f"gptvoice_{model}_{uniq}")
-            )
-            if idx % 3 == 0:
-                buttons.append(row)
-                row = []
-        if row:
-            buttons.append(row)
-        reply_markup = InlineKeyboardMarkup(buttons)
-        return await query.edit_message_text(msg, reply_markup=reply_markup)
-
-
-async def gpt_voice(_, callback_query):
-    if not callback_query.from_user:
-        return await callback_query.answer("ANAK ANJING!!", True)
-    if callback_query.from_user.id not in star._get_my_id:
-        return await callback_query.answer("GW BUNTUNGIN TANGAN LO YA MEMEK", True)
-    data = callback_query.data.split("_")
-    args = str(data[1])
-    uniq = str(data[2])
-    query = state.get(uniq, "chatai")
-    if not query:
-        return await callback_query.answer(
-            "Data telah usang. Silahkan jalankan ulang fitur nya.", True
-        )
-    prompt = query["prompt"]
-    get_id = query["idm"]
-    message = [obj for obj in get_objects() if id(obj) == get_id][0]
-    chat_id = message.chat.id
-    user_id = message.from_user.id
-    ids = (unpack_inline_message_id(callback_query.inline_message_id)).id
-    try:
-        await message._client.delete_messages(
-            message.chat.id,
-            ids,
-        )
-    except Exception:
-        pass
-    if user_id not in CONVERSATIONS:
-        CONVERSATIONS[user_id] = []
-    while True:
-        try:
-            headers = {"mg-apikey": API_MAELYN}
-            params = {"q": prompt, "model": args}
-            url = "https://api.maelyn.sbs/api/chatgpt/audio"
-            response = await Tools.fetch.get(url, headers=headers, params=params)
-            if response.status_code == 200:
-                data = response.json()["result"]
-                audio = data.get("url")
-                CONVERSATIONS[user_id].append(audio)
-                reply = await message._client.send_audio(chat_id, audio)
-                next_message = await message._client.ask(
-                    chat_id,
-                    f"**Model: {args}**\n\n<b>Question:\n<blockquote>{prompt}</blockquote>\n\n**Type `stopped ask` to end the conversation.**",
-                    reply_to_message_id=reply.id,
-                )
-                if next_message.text.lower() == "stopped ask":
-                    del CONVERSATIONS[user_id]
-                    await next_message.reply(f"**Conversation ended.**")
-                    break
-                prompt = next_message.text
-            else:
-                return await message.reply("<b>Please try again later..</b>")
-        except Exception:
-            logger.error(traceback.format_exc())
-            return await message.reply("<b>Please try again later..</b>")
-
 
 async def cine_plax(_, callback_query):
     if not callback_query.from_user:
