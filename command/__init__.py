@@ -52,7 +52,7 @@ from .convert_command import (blur_cmd, gif_cmd, lang_cmd,
 from .copy_command import copyall2_cmd, copyall_cmd
 from .emoji_command import id_cmd, setemoji_cmd
 from .gempa_command import gempa_cmd
-from .gen_img_command import (bingimg_cmd, brat_cmd, maker_img_cmd, startnest_cmd)
+from .gen_img_command import (bingimg_cmd, brat_cmd, maker_img_cmd)
 from .global_command import (gban_cmd, gbanlist_cmd, gmute_cmd, gmutelist_cmd,
                              ungban_cmd, ungmute_cmd)
 from .graph_command import tg_cmd
