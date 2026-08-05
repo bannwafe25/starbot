@@ -69,7 +69,6 @@ from .inline_command import (alive_inline, apkan1_cmd, apkmoddy_cmd, ask_cmd,
                              inline_comic, inline_donghua, inline_font,
                              inline_info, inline_news, inline_spotify,
                              inline_youtube, pmpermit_inline, send_inline, inline_drakor)
-from .metaai_command import metaai_cmd
 from .notes_command import (clearnotes_cmd, get_raw_note, getnote_cmd,
                             getnotes_, listnotes_cmd, savenote_cmd)
 from .payment_command import (cancel_payment, cancelpay_cmd, chose_plan,
