@@ -580,46 +580,45 @@ async def qcolor_cmd(client, message):
 
 
 async def qoutly_cmd(client, message):
-
     if not message.reply_to_message:
-        return await message.reply(
-            "Reply pesan dulu."
-        )
-
+        return await message.reply("Reply pesan dulu.")
 
     msg = message.reply_to_message
+    info = Quotly.parse_reply_info(msg)
+
+    if not info.get("chatId"):
+        return await message.reply("Tidak bisa quote pesan ini.")
+
+    if not info.get("text"):
+        return await message.reply("Pesan yang di-reply tidak punya teks.")
 
     payload = {
         "type": "quote",
         "format": "png",
-
         "messages": [
             {
-                "entities": [],
-
+                "entities": info["entities"],
                 "avatar": True,
-
                 "from": {
-                    "id": msg.from_user.id,
-                    "name": msg.from_user.first_name,
-                    "photo": {
-                        "url": "https://i.pravatar.cc/300"
-                    }
+                    "id": info["chatId"],
+                    "name": info["name"],
                 },
-
-                "text": msg.text or ""
+                "text": info["text"],
             }
         ]
     }
 
+    try:
+        image = await Quotly.quotly(payload)
+    except QuotlyException as e:
+        return await message.reply(f"Gagal membuat quote: {e}")
+    except Exception as e:
+        return await message.reply(f"Terjadi kesalahan tak terduga: {e}")
 
-    image = await Quotly.quotly(payload)
-
-
-    await message.reply_photo(
-        image,
-        caption="✅ Quote dibuat"
-    )
+    try:
+        await message.reply_photo(image, caption="✅ Quote berhasil dibuat")
+    except Exception as e:
+        await message.reply(f"Gagal mengirim gambar: {e}")
 
 async def tiny_cmd(client, message):
     em = Emoji(client)
