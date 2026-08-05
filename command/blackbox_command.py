@@ -100,7 +100,7 @@ async def deepseek_cmd(client, message):
             "role": "system",
             "content":
             "Kamu adalah asisten AI paling canggih. "
-            "Gunakan bahasa Indonesia gaul kecuali user memakai bahasa lain."
+            "Gunakan bahasa Indonesia Toxic."
         },
         {
             "role": "user",
@@ -125,7 +125,7 @@ async def deepseek_cmd(client, message):
 
                 next_message = await message._client.ask(
                     chat_id,
-                    "**Chat with BlackBox**\n\n"
+                    "**Chat with ZpAi**\n\n"
                     f"Question:\n{prompt}\n\n"
                     "Ketik `stopped ask` untuk mengakhiri.",
                     reply_to_message_id=reply.id,
@@ -136,9 +136,9 @@ async def deepseek_cmd(client, message):
 
                 next_message = await message._client.ask(
                     chat_id,
-                    f"**Chat with BlackBox**\n\n"
-                    f"Question:\n{prompt}\n\n"
-                    f"Answer:\n<blockquote>{result}</blockquote\n\n"
+                    f"**Chat with ZpAi**\n\n"
+                    f"Question:\n<blockquote>{prompt}</blockquote>\n\n"
+                    f"Answer:\n<blockquote>{result}</blockquote>\n\n"
                     "Ketik `stopped ask` untuk mengakhiri.",
                     timeout=300
                 )
