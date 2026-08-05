@@ -282,17 +282,21 @@ class Quotly:
     
     @staticmethod
     async def quotly(payload):
-        url = "https://bot.lyo.su/quote/generate.png"
+        # Pakai ekstensi .png supaya respons berupa gambar biner langsung
+        url = "https://quote.yuri.ly/quote/generate.png"
 
-        r = await Tools.fetch.post(
-            url,
-            json=payload
-        )
+        try:
+            r = await Tools.fetch.post(
+                url,
+                json=payload
+            )
+        except Exception as e:
+            raise QuotlyException(f"Gagal menghubungi server quote: {e}")
 
         if r.status_code == 200:
             return BytesIO(r.content)
 
-        raise QuotlyException(r.text)
+        raise QuotlyException(f"Server merespons error ({r.status_code}): {r.text}")
 
     @staticmethod
     async def make_carbonara(
