@@ -21,7 +21,7 @@ from pyrogram.enums import MessageMediaType
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
-from config import API_MAELYN, SUDO_OWNERS
+from config import SUDO_OWNERS
 from database import dB
 from helpers import (
     ApiImage,
@@ -405,41 +405,6 @@ async def toaudio_cmd(client, message):
     else:
         return await proses.edit(f"<b>{em.gagal}Please reply to video!!</b>")
 
-
-async def img2text_cmd(client, message):
-    em = Emoji(client)
-    await em.get()
-
-    prs = await animate_proses(message, em.proses)
-    reply = message.reply_to_message
-    if not reply:
-        return await prs.edit(f"{em.gagal}**Please reply to image!!**")
-    if reply and not reply.photo:
-        return await prs.edit(f"{em.gagal}**Please reply to image!!**")
-    arg = await Tools.maelyn_upload(message)
-    url = f"https://api.maelyn.sbs/api/img2txt/prompt?url={arg}&apikey={API_MAELYN}"
-    respon = await Tools.fetch.get(url)
-    await prs.edit(f"{em.proses}**Scanning of image...**")
-    if respon.status_code != 200:
-        return await prs.edit(
-            f"{em.gagal}**Please try again later: {respon.status_code}**"
-        )
-    data = respon.json().get("result")
-    if not data:
-        return await prs.edit(
-            f"{em.gagal}**Please try again later: {respon.status_code}**"
-        )
-    try:
-        await message.reply(
-            f"{em.sukses}**Media:** <a href='{reply.link}'>Here</a>\n**Result:** `{data}`",
-            disable_web_page_preview=True,
-        )
-        return await prs.delete()
-    except Exception as er:
-        await prs.delete()
-        return await message.reply(f"{em.gagal}**ERROR:** {str(er)}")
-
-
 async def mmf_cmd(client, message):
     emo = Emoji(client)
     await emo.get()
@@ -655,31 +620,6 @@ async def qoutly_cmd(client, message):
         image,
         caption="✅ Quote dibuat"
     )
-
-
-async def textgen_cmd(client, message):
-    em = Emoji(client)
-    await em.get()
-
-    prs = await animate_proses(message, em.proses)
-    prompt = client.get_text(message)
-
-    if not prompt:
-        return await prs.edit(
-            f"{em.gagal}<b>Give the query you want to generate prompt!\n\nExample: \n<code>{message.text.split()[0]} cat on the beach</code></b>"
-        )
-    url = f"https://api.maelyn.sbs/api/generator/prompt?q={prompt}&apikey={API_MAELYN}"
-    respon = await Tools.fetch.get(url)
-    if respon.status_code == 200:
-        data = respon.json()["result"]
-        try:
-            await prs.edit(f"`{data}`")
-        except Exception as er:
-            await prs.delete()
-            return await message.reply(f"{em.gagal}**ERROR:** {str(er)}")
-    else:
-        return await prs.edit(f"**{em.gagal}Please try again: {respon.status_code}!**")
-
 
 async def tiny_cmd(client, message):
     em = Emoji(client)
