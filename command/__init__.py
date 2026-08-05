@@ -50,7 +50,6 @@ from .convert_command import (blur_cmd, gif_cmd, lang_cmd,
                               tr_cmd, tts_cmd, vremover_cmd, waifu_cmd,
                               webdl_cmd, webss_cmd)
 from .copy_command import copyall2_cmd, copyall_cmd
-from .cuaca_command import cuaca_cmd
 from .emoji_command import id_cmd, setemoji_cmd
 from .fake_command import (fstik_cmd, ftype_cmd, fvideo_cmd, fvoice_cmd,
                            mail_cmd, task_cmd)
