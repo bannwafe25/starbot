@@ -310,22 +310,6 @@ async def cat_cmd(_, message):
     except Exception as er:
         return await message.reply(f"**ERROR**: {str(er)}")
 
-
-async def bola_cmd(_, message):
-    try:
-        uniq = f"{str(uuid4())}"
-        inline = await ButtonUtils.send_inline_bot_result(
-            message,
-            message.chat.id,
-            bot.me.username,
-            f"inline_bola {uniq.split('-')[0]}",
-        )
-        if inline:
-            return await message.delete()
-    except Exception as er:
-        return await message.reply(f"**ERROR**: {str(er)}")
-
-
 async def inline_card_info(results, inline):
     try:
         uniq = inline.query.split()[1]
