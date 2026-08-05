@@ -5,7 +5,7 @@ from command import (an1cb, back_home, calculator_callback, callback_alert, canc
                      cek_status_akun, chose_plan, cine_plax,
                      closed_bot, closed_user, confirm_pay, contact_admins,
                      copy_msg, del_userbot, dl_spot, dl_ytsearch,
-                     general_plugins, get_bio, get_font, gpt_voice,
+                     general_plugins, get_bio, get_font, 
                      kurang_tambah, mari_buat_userbot, moddycb, news_,
                      next_font, nxt_spotify, nxt_ytsearch, nxtbmkg, pm_warn,
                      prev_font, prevnext_userbot, prevnext_userbot2,
