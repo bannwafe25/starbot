@@ -248,10 +248,6 @@ async def _(client, callback):
             return await rest_comic(client, callback)
         elif query.startswith("news_"):
             return await news_(client, callback)
-        elif query.startswith("chatgpt_"):
-            return await chat_gpt(client, callback)
-        elif query.startswith("gptvoice_"):
-            return await gpt_voice(client, callback)
         elif query.startswith("cineplax"):
             return await cine_plax(client, callback)
 
