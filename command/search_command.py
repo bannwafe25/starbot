@@ -13,7 +13,7 @@ from geopy.geocoders import Nominatim
 from pyrogram.errors import MessageTooLong
 
 from clients import bot
-from config import API_GEMINI, API_MAELYN
+from config import API_GEMINI
 from database import state
 from helpers import Bing, ButtonUtils, Emoji, Tools, animate_proses, drakor
 
@@ -266,69 +266,6 @@ async def chord_cmd(client, message):
         return await proses.edit(
             f"{em.gagal}**Please try again later: {respon.status_code}!!**"
         )
-
-
-async def kbbi_cmd(client, message):
-    em = Emoji(client)
-    await em.get()
-
-    proses = await animate_proses(message, em.proses)
-    prompt = client.get_text(message)
-    if not prompt:
-        return await proses.edit(
-            f"{em.gagal}**Please reply to a message containing the prompt!\n"
-            f"Example: `{message.text.split()[0]} pohon`**"
-        )
-
-    url = f"https://api.maelyn.sbs/api/kbbi?q={prompt}&apikey={API_MAELYN}"
-    response = await Tools.fetch.get(url)
-    if response.status_code == 200:
-        data = response.json()["result"]
-        result = "**KBBI Result:**\n\n"
-
-        if "description" in data:
-            result += "**Deskripsi:**\n"
-            result += f"- {data.get('description')}\n\n"
-
-        if "relatedWords" in data:
-            result += "**Kata Dasar Lain:**\n"
-            result += ", ".join(data.get("relatedWords")) + "\n\n"
-
-        if "baseWord" in data:
-            result += "**baseWord:**\n"
-            result += f"- **{data['baseWord']}\n"
-        try:
-            return await proses.edit(result)
-        except MessageTooLong:
-            with io.BytesIO(str.encode(str(result))) as out_file:
-                out_file.name = f"{prompt}.txt"
-                await message.reply_document(document=out_file)
-            return await proses.delete()
-    else:
-        return await proses.edit(f"{em.gagal}**Failed to fetch data from KBBI API!**")
-
-
-async def ocr_cmd(client, message):
-    em = Emoji(client)
-    await em.get()
-    reply = message.reply_to_message
-    if not reply or not reply.photo and not reply.sticker and not reply.animation:
-        return await message.reply_text(
-            f"{em.gagal}`{message.text.split()[0]}` **reply to media!**"
-        )
-
-    proses = await animate_proses(message, em.proses)
-    try:
-        url_img = await Tools.maelyn_upload(message)
-        url = f"https://api.maelyn.sbs/api/ocr?url={url_img}&apikey={API_MAELYN}"
-        response = await Tools.fetch.get(url)
-        if response.status_code != 200:
-            return await proses.edit(f"{em.gagal}**Please try again later!**")
-        result = response.json().get("result")
-        return await proses.edit(f"{em.sukses}<code>{result}</code>")
-    except Exception as e:
-        return await proses.edit(f"{em.gagal}**ERROR:** {str(e)}")
-
 
 async def pastebin_cmd(client, message):
     em = Emoji(client)
