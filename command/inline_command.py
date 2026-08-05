@@ -1631,41 +1631,75 @@ async def inline_bmkg(results, inline):
 
 async def inline_youtube(results, inline):
     uniq = str(inline.query.split()[1])
+
     data = state.get(uniq, uniq)
+
+    if not data:
+        return results
+
     state.set(uniq, "fordlyt", data[0]["url"])
+
     per_page = 5
     page = 0
+
     sliced = data[page * per_page : (page + 1) * per_page]
 
     caption = "<blockquote expandable><b>🎧 Youtube Results (Page 1)</b>\n"
+
     buttons = []
-    for idx, audio in enumerate(sliced):
+
+    for idx, video in enumerate(sliced):
+        title = video.get("title", "Unknown")
+        url = video.get("url")
+        duration = video.get("timestamp", "0:00")
+        views = video.get("views", 0)
+        author = video.get("author", {}).get("name", "Unknown")
+
         caption += f"""
-<b>{idx + 1}. 💽 {audio['title']}</b>
-🔗 <a href="{audio['url']}">Youtube Link</a>\n"""
+<b>{idx + 1}. 🎵 {title}</b>
+👤 {author}
+⏱ {duration}
+👁 {views:,} views
+🔗 <a href="{url}">Youtube Link</a>
+
+"""
+
         buttons.append(
             [
                 (
-                    "⬇️ Download " + audio["title"][:20],
+                    f"⬇️ Download {title[:20]}",
                     f"dlytsearch_{uniq}_{page * per_page + idx}",
                 )
             ]
         )
+
     caption += "</blockquote>"
+
     total_pages = (len(data) + per_page - 1) // per_page
-    nav_buttons = [(str(i + 1), f"nxtytsearch_{i}_{uniq}") for i in range(total_pages)]
-    buttons.append(nav_buttons)
+
+    if total_pages > 1:
+        nav_buttons = [
+            (
+                str(i + 1),
+                f"nxtytsearch_{i}_{uniq}"
+            )
+            for i in range(total_pages)
+        ]
+
+        buttons.append(nav_buttons)
 
     results.append(
         InlineQueryResultArticle(
-            title="Youtube Results",
-            description="Tap a button to download",
+            title="🎧 Youtube Results",
+            description=f"{len(data)} videos found",
             input_message_content=InputTextMessageContent(
-                caption, disable_web_page_preview=True
+                caption,
+                disable_web_page_preview=True,
             ),
             reply_markup=ikb(buttons),
         )
     )
+
     return results
 
 
