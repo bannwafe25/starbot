@@ -77,6 +77,11 @@ API_BOTCHAX = os.environ.get(
     None,
 )
 
+API_BLACKBOX = os.environ.get(
+    "API_BLACKBOX",
+    None,
+)
+
 API_MAELYN = os.environ.get(
     "API_MAELYN",
     None,
