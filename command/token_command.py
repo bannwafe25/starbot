@@ -5,8 +5,15 @@ import traceback
 from datetime import datetime, timedelta
 
 import hydrogram
+
 from pyrogram import filters
-from pyrogram.errors import ListenerTimeout
+
+try:
+    from hydrogram.errors import ListenerTimeout
+except ImportError:
+    class ListenerTimeout(Exception):
+        pass
+
 from pyrogram.helpers import ikb, kb
 from pyrogram.types import (KeyboardButton, ReplyKeyboardMarkup,
                             ReplyKeyboardRemove)
