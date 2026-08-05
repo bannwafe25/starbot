@@ -5,8 +5,10 @@ import uuid
 
 import aiofiles
 import aiohttp
+import asyncio
+import io
+from PIL import Image
 from pyrogram.types import InputMediaPhoto
-
 from helpers import Bing, Emoji, Tools, animate_proses
 from logs import logger
 
@@ -101,7 +103,7 @@ async def bingimg_cmd(client, message):
     if not prompt:
         return await message.reply(
             f"{emo.gagal}<b>Give the query you want to search!\n\n"
-            f"Example:\n<code>{message.text.split()[0]} kucing lucu</code></b>"
+            f"Example:\n<code>{message.text.split()[0]} kucing</code></b>"
         )
 
     pros = await message.reply(
@@ -112,57 +114,153 @@ async def bingimg_cmd(client, message):
         api = "https://api.siputzx.my.id/api/s/bimg"
 
         async with aiohttp.ClientSession() as session:
+
             async with session.post(
                 api,
                 json={"query": prompt},
-                headers={"Content-Type": "application/json"}
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "Mozilla/5.0"
+                },
+                timeout=30
             ) as resp:
+
+                if resp.status != 200:
+                    return await pros.edit(
+                        f"{emo.gagal}<b>API error: {resp.status}</b>"
+                    )
+
                 result = await resp.json()
 
-        if not result.get("status"):
-            return await pros.edit(
-                f"{emo.gagal}<b>Failed get image.</b>"
-            )
 
-        imgs = result.get("data", [])
+            if not result.get("status"):
+                return await pros.edit(
+                    f"{emo.gagal}<b>Failed get image.</b>"
+                )
 
-        if not imgs:
-            return await pros.edit(
-                f"{emo.gagal}<b>Images not found.</b>"
-            )
 
-        media_group = []
+            imgs = result.get("data", [])
 
-        for img in imgs[:10]:
-            caption = None
+            if not imgs:
+                return await pros.edit(
+                    f"{emo.gagal}<b>Images not found.</b>"
+                )
+
+
+            media_group = []
+
+
+            async def download_image(url, first=False):
+                try:
+                    async with session.get(
+                        url,
+                        headers={
+                            "User-Agent": "Mozilla/5.0"
+                        },
+                        timeout=15
+                    ) as r:
+
+                        if r.status != 200:
+                            return None
+
+                        data = await r.read()
+
+                        # skip file kecil/error page
+                        if len(data) < 5000:
+                            return None
+
+
+                        img = Image.open(
+                            io.BytesIO(data)
+                        )
+
+                        img.verify()
+
+
+                        img = Image.open(
+                            io.BytesIO(data)
+                        )
+
+                        img = img.convert("RGB")
+
+
+                        buffer = io.BytesIO()
+
+                        img.save(
+                            buffer,
+                            format="JPEG",
+                            quality=90
+                        )
+
+                        buffer.seek(0)
+
+
+                        caption = None
+
+                        if first:
+                            caption = (
+                                f"{emo.sukses}<b>Bing Image Result</b>\n\n"
+                                f"<blockquote>"
+                                f"🔎 <b>Query:</b> <code>{prompt}</code>\n"
+                                f"🖼️ <b>Result:</b> <code>{len(imgs)}</code> images\n"
+                                f"⚡ <b>Source:</b> Bing"
+                                f"</blockquote>"
+                            )
+
+
+                        return InputMediaPhoto(
+                            media=buffer,
+                            caption=caption
+                        )
+
+
+                except Exception as e:
+                    logger.warning(
+                        f"Failed image {url}: {e}"
+                    )
+                    return None
+
+
+
+            tasks = []
+
+            for i, img in enumerate(imgs[:10]):
+                tasks.append(
+                    download_image(
+                        img,
+                        first=(i == 0)
+                    )
+                )
+
+
+            results = await asyncio.gather(*tasks)
+
+
+            for item in results:
+                if item:
+                    media_group.append(item)
+
 
             if not media_group:
-                caption = (
-                    f"{emo.sukses}<b>Bing Image Result</b>\n\n"
-                    f"<blockquote>"
-                    f"🔎 <b>Query:</b> <code>{prompt}</code>\n"
-                    f"🖼️ <b>Result:</b> <code>{len(imgs)}</code> images\n"
-                    f"⚡ <b>Source:</b> Bing"
-                    f"</blockquote>"
+                return await pros.edit(
+                    f"{emo.gagal}<b>No valid images found.</b>"
                 )
 
-            media_group.append(
-                InputMediaPhoto(
-                    media=img,
-                    caption=caption
-                )
+
+            await client.send_media_group(
+                chat_id=message.chat.id,
+                media=media_group,
+                reply_to_message_id=message.id
             )
 
-        await client.send_media_group(
-            chat_id=message.chat.id,
-            media=media_group,
-            reply_to_message_id=message.id
-        )
 
-        await pros.delete()
+            await pros.delete()
+
 
     except Exception as e:
-        logger.error(f"Bing IMG error:\n{traceback.format_exc()}")
+        logger.error(
+            f"Bing IMG error:\n{traceback.format_exc()}"
+        )
 
         await pros.edit(
             f"{emo.gagal}<b>Error:</b>\n"
