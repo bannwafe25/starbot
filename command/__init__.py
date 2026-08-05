@@ -45,7 +45,7 @@ from .clone_command import clone_cmd
 from .convert_command import (blur_cmd, gif_cmd, lang_cmd,
                               miror_cmd, mmf_cmd, negative_cmd, pic_cmd,
                               qcolor_cmd, qoutly_cmd, qrcode_cmd, rbg_cmd,
-                              setlang_cmd, stt_cmd, textgen_cmd, tiny_cmd,
+                              setlang_cmd, stt_cmd, tiny_cmd,
                               toaudio_cmd, togif_cmd, toimg_cmd, tosticker_cmd,
                               tr_cmd, tts_cmd, vremover_cmd, waifu_cmd,
                               webdl_cmd, webss_cmd)
