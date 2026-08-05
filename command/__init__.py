@@ -86,8 +86,7 @@ from .search_command import (alkitab_cmd, artiname_cmd, chord_cmd,
                              infoanime_cmd, khodam_cmd, maps_cmd,
                              pantun_cmd, pastebin_cmd, tafsir_cmd,
                              zodiak_cmd, drakor_cmd)
-from .sosmed_command import (downloader_cmd, pinterst_search, spotify_search,
-                             tiktok_search, youtube_search)
+from .sosmed_command import (pinterst_search, youtube_search)
 from .spambot_command import spam_bot
 from .start_command import (back_home, button_bot, getid_bot, incoming_message,
                             lapor_bug, outgoing_reply, request_bot, setads_bot,
