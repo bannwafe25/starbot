@@ -3,7 +3,7 @@ __HELP__ = """<blockquote>Command Help **Deepseek**</blockquote>
 <blockquote expandable>--**Basic Commands**--
 
     **You can answer question to deepseek ai** 
-        `{0}deepseek` (question)</blockquote>
+        `{0}ask` (question)</blockquote>
 <b>   {1}</b>
 """
 
@@ -13,6 +13,6 @@ from helpers import CMD
 IS_PRO = True
 
 
-@CMD.UBOT("deepseek")
+@CMD.UBOT("ask")
 async def _(client, message):
     return await deepseek_cmd(client, message)
