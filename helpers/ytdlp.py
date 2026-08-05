@@ -133,45 +133,72 @@ stream = StreamingTools()
 class YoutubeAPI:
     def __init__(self):
         self.last_percent = 0
-        self.regex = r"^(https:\/\/www.youtube.com\/)(.*)$"
+        self.regex = r"^(https?://)?(www\.)?(youtube\.com|youtu\.be)/.+$"
 
     async def valid(self, link: str):
-        if re.search(self.regex, link):
-            return True
-        else:
-            return False
+        return bool(re.search(self.regex, link))
 
     async def download(self, url, as_video=False):
         url = stream.sanitize_url(url)
+
         ydl_opts = {
             "quiet": True,
             "no_warnings": True,
             "nocheckcertificate": True,
             "geo_bypass": True,
-            "cookiefile": cookies(),
             "outtmpl": "downloads/%(title)s.%(ext)s",
-            "extractor_args": {"youtubetab": "skip=authcheck"},
+            "extractor_args": {
+                "youtubetab": {
+                    "skip": ["authcheck"]
+                }
+            },
         }
+
+        cookie = cookies()
+        if cookie:
+            ydl_opts["cookiefile"] = cookie
 
         if as_video:
             ydl_opts["format"] = (
-                "bestvideo[height<=?720][width<=?1280][ext=mp4]+bestaudio[ext=m4a]"
+                "bestvideo[height<=720]+bestaudio/best"
             )
+            ydl_opts["merge_output_format"] = "mp4"
         else:
-            ydl_opts["format"] = "bestaudio[ext=m4a]"
+            ydl_opts["format"] = "bestaudio/best"
 
         ydl = yt_dlp.YoutubeDL(ydl_opts)
-        ytdl_data = await self.run_sync(ydl.extract_info, url, download=True)
 
-        file_name = ydl.prepare_filename(ytdl_data)
+        ytdl_data = await self.run_sync(
+            ydl.extract_info,
+            url,
+            download=True
+        )
+
+        file_name = (
+            ytdl_data.get("_filename")
+            or ydl.prepare_filename(ytdl_data)
+        )
+
         inpoh = "Video" if as_video else "Audio"
+
         videoid = ytdl_data.get("id")
-        title = ytdl_data.get("title")
-        url = f"https://youtu.be/{videoid}"
-        duration = int(ytdl_data.get("duration", 0))
-        channel = ytdl_data.get("uploader", "Unknown")
+        title = ytdl_data.get("title", "Unknown")
+        yt_url = f"https://youtu.be/{videoid}"
+
+        duration = int(ytdl_data.get("duration") or 0)
+
+        channel = ytdl_data.get(
+            "uploader",
+            "Unknown"
+        )
+
         views = f"{ytdl_data.get('view_count', 0):,}".replace(",", ".")
-        thumb = f"https://img.youtube.com/vi/{videoid}/hqdefault.jpg"
+
+        thumb = (
+            f"https://img.youtube.com/vi/{videoid}/hqdefault.jpg"
+            if videoid
+            else None
+        )
 
         data_ytp = """
 <blockquote expandable><b>   「💡 Information {}」</b>
@@ -181,19 +208,19 @@ class YoutubeAPI:
 📢 Channel: <code>{}</code>
 🔗 Link: <a href='{}'>Youtube</a>
 ⚡Downloaded By: {}</blockquote>"""
-        try:
-            return (
-                file_name,
-                inpoh,
-                title,
-                duration,
-                views,
-                channel,
-                url,
-                videoid,
-                thumb,
-                data_ytp,
-            )
+
+        return (
+            file_name,
+            inpoh,
+            title,
+            duration,
+            views,
+            channel,
+            yt_url,
+            videoid,
+            thumb,
+            data_ytp,
+        )
         except Exception:
             print(f"ERROR: {traceback.format_exc()}")
 
