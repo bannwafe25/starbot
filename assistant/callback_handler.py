@@ -2,7 +2,7 @@ import traceback
 import random
 from command import (an1cb, back_home, calculator_callback, callback_alert, cancel_payment,
                      cb_help, cb_markdown, cb_notes, cek_expired_cb,
-                     cek_status_akun, chat_gpt, chose_plan, cine_plax,
+                     cek_status_akun, chose_plan, cine_plax,
                      closed_bot, closed_user, confirm_pay, contact_admins,
                      copy_msg, del_userbot, dl_spot, dl_ytsearch,
                      general_plugins, get_bio, get_font, gpt_voice,
