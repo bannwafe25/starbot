@@ -128,25 +128,12 @@ from .vctools_command import (joinos_cmd, joinvc_cmd, leavevc_cmd, listner_cmd,
                               startvc_cmd, stopvc_cmd, turunos_cmd,
 
                               vctitle_cmd)
-from .ceklahir_command import ceklahir_cmd
-
+                              
 from .stock_nokos_command import (
     restock_nokos_cmd,
     delstock_nokos_cmd,
     getstock_nokos_cmd,
 )
-
-from .cekjembut_command import cekjembut_cmd
-
-from .cekilmu_command import cekilmu_cmd
-
-from .cekkhodam_command import cekkhodam_cmd
-
-from .cekumur_command import cekumur_cmd
-
-from .cekktp_command import cekktp_cmd
-
-from .cektt_command import cektt_cmd
 
 from .done_command import done_cmd
 from .nokos_command import cb_shop, cb_page_shop, open_nokos, open_nokos_cb
