@@ -4,7 +4,7 @@ from pyrogram.errors import QueryIdInvalid
 
 from command import (alive_inline, button_inline, get_inline_help,
                      get_inline_note, inline_afk, inline_anime, inline_apkan1,
-                     inline_apkmoddy, inline_autobc, inline_bmkg, inline_bola,
+                     inline_apkmoddy, inline_autobc, inline_bmkg,
                      inline_calculator, inline_card_info, inline_cat,
                      inline_chatai, inline_chord, inline_comic, inline_donghua,
                      inline_font, inline_info, inline_news, inline_spotify,
@@ -71,13 +71,6 @@ async def _(client, inline_query):
             )
         elif text.split()[0] == "inline_cat":
             answerss = await inline_cat(answers, inline_query)
-            return await client.answer_inline_query(
-                inline_query.id,
-                results=answerss,
-                cache_time=0,
-            )
-        elif text.split()[0] == "inline_bola":
-            answerss = await inline_bola(answers, inline_query)
             return await client.answer_inline_query(
                 inline_query.id,
                 results=answerss,
