@@ -84,7 +84,7 @@ from .restart_command import (reset_costum_text, reset_emoji, reset_prefix,
 from .saweria_command import saweria_cmd
 from .search_command import (alkitab_cmd, artiname_cmd, chord_cmd,
                              infoanime_cmd, khodam_cmd, maps_cmd,
-                             ocr_cmd, pantun_cmd, pastebin_cmd, tafsir_cmd,
+                             pantun_cmd, pastebin_cmd, tafsir_cmd,
                              zodiak_cmd, drakor_cmd)
 from .sosmed_command import (downloader_cmd, pinterst_search, spotify_search,
                              tiktok_search, youtube_search)
