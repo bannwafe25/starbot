@@ -478,30 +478,56 @@ async def spotify_search(client, message):
 async def youtube_search(client, message):
     em = Emoji(client)
     await em.get()
+
     query = client.get_text(message)
+
     if not query:
         return await message.reply(
-            f"{em.gagal}<b>Please give query\nExample: `{message.text.split()[0]} bh terbang` or `{message.text.split()[0]} garam & madu`</b>"
+            f"{em.gagal}<b>Please give query\n"
+            f"Example: `{message.text.split()[0]} bh terbang`</b>"
         )
+
     proses = await animate_proses(message, em.proses)
-    data_json = {"query": query}
-    url = "https://api.siputzx.my.id/api/s/youtube"
-    response = await Tools.fetch.post(url, json=data_json)
+
+    response = await Tools.fetch.post(
+        "https://api.siputzx.my.id/api/s/youtube",
+        json={"query": query},
+    )
+
     if response.status_code != 200:
-        return await proses.edit(f"{em.gagal}**Please try again later!**")
-    uniq = f"{str(uuid4())}"
-    data = response.json()["data"]
-    state.set(uniq.split("-")[0], uniq.split("-")[0], data)
-    state.set(uniq.split("-")[0], "idm_ytsearch", id(message))
-    as_video = True if message.command[0] == "vsong" else False
-    state.set(uniq.split("-")[0], "as_video", as_video)
+        return await proses.edit(
+            f"{em.gagal}<b>Please try again later!</b>"
+        )
+
+    data = response.json().get("data", [])
+
+    if not data:
+        return await proses.edit(
+            f"{em.gagal}<b>No video found!</b>"
+        )
+
+    key = str(uuid4())
+
+    as_video = (
+        message.command[0].lower() == "vsong"
+        if message.command
+        else False
+    )
+
+    state.set(key, key, data)
+    state.set(key, "idm_ytsearch", id(message))
+    state.set(key, "as_video", as_video)
+
     inline = await ButtonUtils.send_inline_bot_result(
         message,
         message.chat.id,
         bot.me.username,
-        f"inline_youtube {uniq.split('-')[0]}",
+        f"inline_youtube {key}",
     )
+
     if inline:
         await proses.delete()
     else:
-        return await proses.edit(f"{em.gagal}**ERROR Please contact developer.*")
+        await proses.edit(
+            f"{em.gagal}<b>ERROR Please contact developer.</b>"
+        )
