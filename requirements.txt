@@ -66,13 +66,10 @@ python-telegram-bot
 telethon
 yt-dlp[default]>=2025.12.8
 youtube-search
-###youtube-search-python
+youtube-search-python
 gpytranslate
-git+https://github.com/jonesroot/yt-search-python.git@legacy
 git+https://github.com/zpkemem-code/callgram.git@master
-###git+https://github.com/jonesroot/callgram.git@master
-###git+https://github.com/google-gemini/generative-ai-python.git@main
-git+https://github.com/plerbanget/generative-ai-python.git@main
+git+https://github.com/googleapis/python-genai.git@main
 git+https://github.com/FerlyKurniawan/pyrofork
-###git+https://github.com/FerlyKurniawan/hydrogram@dev
-git+https://github.com/levinedam/hydrogram@main
+git+https://github.com/FerlyKurniawan/hydrogram@dev
+
