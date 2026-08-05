@@ -3,6 +3,7 @@ from math import ceil
 from typing import List, Optional, Tuple
 from uuid import uuid4
 
+from pyrogram import enums
 from pyrogram.errors import QueryIdInvalid, RPCError
 from pyrogram.helpers import ikb, kb
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
@@ -179,43 +180,135 @@ class ButtonUtils:
 
     @staticmethod
     async def create_button(
-        text: str, data: str, with_suffix: str = ""
+        text: str,
+        data: str,
+        with_suffix: str = "",
+        style=None,
+        icon_custom_emoji_id=None,
     ) -> InlineKeyboardButton:
-        """Create an InlineKeyboardButton based on data type."""
+        """Create InlineKeyboardButton with style and custom emoji support."""
+
         data = data.strip()
+
+        kwargs = {
+            "text": text,
+        }
+
+        # Telegram button style
+        if style:
+            kwargs["style"] = style
+
+        # Custom emoji icon
+        if icon_custom_emoji_id:
+            kwargs["icon_custom_emoji_id"] = icon_custom_emoji_id
+
         if ButtonUtils.is_url(data):
-            return InlineKeyboardButton(text=text, url=data)
+            kwargs["url"] = data
+
         elif ButtonUtils.is_number(data):
-            return InlineKeyboardButton(text=text, user_id=int(data))
+            kwargs["user_id"] = int(data)
+
         elif ButtonUtils.is_copy(data):
-            return InlineKeyboardButton(text=text, copy_text=data.replace("copy:", ""))
+            kwargs["copy_text"] = data.replace(
+                "copy:",
+                ""
+            )
+
         elif ButtonUtils.is_alert(data):
-            alert_text = data.replace("alert:", "")
+            alert_text = data.replace(
+                "alert:",
+                ""
+            )
+
             uniq = str(uuid4().int)[:8]
-            await dB.set_var(int(uniq), int(uniq), alert_text)
-            cb_data = f"alertcb_{int(uniq)}"
-            return InlineKeyboardButton(text=text, callback_data=cb_data)
-        return InlineKeyboardButton(
-            text=text, callback_data=f"{data}_{with_suffix}" if with_suffix else data
-        )
+
+            await dB.set_var(
+                int(uniq),
+                int(uniq),
+                alert_text
+            )
+
+            kwargs["callback_data"] = f"alertcb_{uniq}"
+
+        else:
+            kwargs["callback_data"] = (
+                f"{data}_{with_suffix}"
+                if with_suffix
+                else data
+            )
+
+        return InlineKeyboardButton(**kwargs)
+
 
     @staticmethod
     async def create_inline_keyboard(
-        buttons: List[List], suffix: str = ""
+        buttons,
+        suffix: str = ""
     ) -> InlineKeyboardMarkup:
-        """Create InlineKeyboardMarkup from button data."""
-        keyboard = []
-        for row in buttons:
-            if len(row) > 1:
-                keyboard.append(
-                    [
-                        await ButtonUtils.create_button(text, data, suffix)
-                        for text, data in row
-                    ]
+        """
+        Support format:
+
+        [
+            [
+                ("Buy", "buy"),
+                ("Cancel", "cancel")
+            ]
+        ]
+
+        With style:
+
+        [
+            [
+                ("Confirm", "ok", enums.ButtonStyle.SUCCESS),
+                ("Cancel", "no", enums.ButtonStyle.DANGER)
+            ]
+        ]
+
+        With icon:
+
+        [
+            [
+                (
+                    "Buy",
+                    "buy",
+                    None,
+                    5789175442628350606
                 )
-            else:
-                text, data = row[0]
-                keyboard.append([await ButtonUtils.create_button(text, data, suffix)])
+            ]
+        ]
+        """
+
+        keyboard = []
+
+        for row in buttons:
+            new_row = []
+
+            for item in row:
+
+                text = item[0]
+                data = item[1]
+
+                style = None
+                icon = None
+
+                if len(item) >= 3:
+                    style = item[2]
+
+                if len(item) >= 4:
+                    icon = item[3]
+
+                button = await ButtonUtils.create_button(
+                    text,
+                    data,
+                    suffix,
+                    style,
+                    icon
+                )
+
+                new_row.append(button)
+
+            keyboard.append(new_row)
+
         return InlineKeyboardMarkup(keyboard)
 
     """Pre-defined keyboard templates for Pyrogram."""
