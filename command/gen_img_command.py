@@ -11,52 +11,113 @@ import random
 import io
 from io import BytesIO
 from PIL import Image
+from pyrogram import Client, filters
 from pyrogram.types import InputMediaPhoto
 from helpers import Bing, Emoji, Tools, animate_proses
 from logs import logger
 from datetime import datetime
 
+QUOTE_API = "https://brat.siputzx.my.id/quoted"
+
+
+async def get_avatar_url(client, user_id):
+    try:
+        photo = await client.get_chat_photos(
+            user_id,
+            limit=1
+        ).__anext__()
+
+        file = await client.download_media(
+            photo,
+            in_memory=True
+        )
+
+        file.seek(0)
+
+        async with aiohttp.ClientSession() as session:
+            form = aiohttp.FormData()
+            form.add_field(
+                "file",
+                file,
+                filename="avatar.jpg",
+                content_type="image/jpeg"
+            )
+
+            async with session.post(
+                "https://telegra.ph/upload",
+                data=form
+            ) as res:
+                data = await res.json()
+
+        return "https://telegra.ph" + data[0]["src"]
+
+    except Exception:
+        return ""
+
 async def quote_cmd(client, message):
-    if not message.reply_to_message:
-        return await message.edit("Balas pesan yang ingin dibuat quote.")
 
-    reply = message.reply_to_message
-    user = reply.from_user
+    # Ambil teks
+    if message.reply_to_message:
+        text = (
+            message.reply_to_message.text
+            or message.reply_to_message.caption
+            or ""
+        )
 
-    # --- FITUR WARNA BACKGROUND ACAK ---
-    # Anda bisa menambah atau mengubah kode warna HEX di bawah ini sesuai selera
-    bg_colors = [
-        "#292232", # Ungu Gelap (Default sebelumnya)
-        "#1b1429", # Ungu Sangat Gelap
-        "#2c3e50", # Biru Dongker
-        "#16a085", # Hijau Tosca Gelap
-        "#8e44ad", # Ungu Terang
-        "#2c2c54", # Indigo Gelap
-        "#b33939", # Merah Bata Gelap
-        "#3d3d3d", # Abu-abu Gelap
-        "#d35400"  # Oranye Gelap
-    ]
-    selected_color = random.choice(bg_colors)
-    # -----------------------------------
+        user = message.reply_to_message.from_user
 
-    # 1. Kerangka Dasar JSON (Boilerplate)
+    else:
+        text = message.text.split(
+            None,
+            1
+        )[1] if len(message.text.split()) > 1 else ""
+
+        user = message.from_user
+
+
+    if not text:
+        return await message.reply(
+            "Balas pesan atau beri teks.\n\n"
+            "Contoh:\n"
+            ".q halo dunia\n"
+            "atau reply pesan lalu .q"
+        )
+
+
+    avatar = await get_avatar_url(
+        client,
+        user.id
+    )
+
+
     payload = {
-        "messages": [{
-            "from": {
-                "id": 1,
-                "first_name": "user",
-                "last_name": "",
-                "name": "user",
-                "photo": {"url": ""}
-            },
-            "text": "",
-            "entities": [],
-            "avatar": True,
-            "media": {"url": ""},
-            "mediaType": "",
-            "replyMessage": {}
-        }],
-        "backgroundColor": selected_color, # <-- Memasukkan warna acak ke sini
+        "messages": [
+            {
+                "from": {
+                    "id": user.id,
+                    "first_name": user.first_name or "User",
+                    "last_name": user.last_name or "",
+                    "name": user.first_name or "User",
+                    "photo": {
+                        "url": avatar
+                    }
+                },
+                "text": text,
+                "entities": [],
+                "avatar": True,
+                "media": {
+                    "url": ""
+                },
+                "mediaType": "",
+                "replyMessage": {
+                    "name": "",
+                    "text": "",
+                    "entities": [],
+                    "chatId": message.chat.id
+                }
+            }
+        ],
+        "backgroundColor": "#292232",
         "width": 512,
         "height": 512,
         "scale": 2,
@@ -65,81 +126,30 @@ async def quote_cmd(client, message):
         "emojiStyle": "apple"
     }
 
-    # 2. Menimpa (Overwrite) Data Pengguna & Foto
-    if user:
-        name = user.first_name or "User"
-        last_name = user.last_name or ""
-        full_name = f"{name} {last_name}".strip()
 
-        payload["messages"][0]["from"].update({
-            "id": user.id,
-            "first_name": name,
-            "last_name": last_name,
-            "name": full_name
-        })
-
-        try:
-            async for p in client.get_chat_photos(user.id, limit=1):
-                photo_file = await client.download_media(p.file_id, in_memory=True)
-                photo_b64 = "data:image/png;base64," + base64.b64encode(photo_file.getvalue()).decode()
-                payload["messages"][0]["from"]["photo"]["url"] = photo_b64
-                break
-        except Exception:
-            pass 
-
-    # 3. Menimpa Teks & Entities (Format Tebal, Miring, dll)
-    payload["messages"][0]["text"] = reply.text or reply.caption or ""
-    
-    raw_entities = reply.entities or reply.caption_entities or []
-    for ent in raw_entities:
-        ent_type = ent.type.name.lower() if hasattr(ent.type, "name") else str(ent.type).lower()
-        payload["messages"][0]["entities"].append({
-            "type": ent_type,
-            "offset": ent.offset,
-            "length": ent.length
-        })
-
-    # 4. (Ekstra) Menimpa Data Pesan Balasan (Jika ada)
-    if reply.reply_to_message:
-        rep_to = reply.reply_to_message
-        rep_user = rep_to.from_user
-        rep_name = rep_user.first_name if rep_user else "Unknown"
-        
-        payload["messages"][0]["replyMessage"] = {
-            "name": rep_name,
-            "text": rep_to.text or rep_to.caption or "Media",
-            "chatId": rep_to.chat.id
-        }
-
-    # 5. Mengirim Request & Konversi WEBP
     try:
-        await message.edit("⏳ Merakit stiker quote...")
-
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                "https://brat.siputzx.my.id/quoted", 
-                json=payload, 
-                timeout=60
-            ) as r:
-                if r.status != 200:
-                    error_text = await r.text()
-                    return await message.edit(f"Gagal merakit quote:\n{error_text}")
-                
-                content = await r.read()
+                QUOTE_API,
+                json=payload
+            ) as resp:
 
-        img = Image.open(BytesIO(content)).convert("RGBA")
-        img.thumbnail((512, 512))
+                if resp.status != 200:
+                    return await message.reply(
+                        f"API error: {resp.status}"
+                    )
 
-        sticker = BytesIO()
-        sticker.name = "quote.webp"
-        img.save(sticker, "WEBP", quality=95, method=6)
-        sticker.seek(0)
+                image = await resp.read()
 
-        await message.reply_sticker(sticker)
-        await message.delete()
+
+        await message.reply_photo(
+            photo=image
+        )
 
     except Exception as e:
-        await message.edit(f"Error: {e}")
+        await message.reply(
+            f"Error: {e}"
+        )
 
 async def brat_cmd(client, message):
     em = Emoji(client)
