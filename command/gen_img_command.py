@@ -16,16 +16,14 @@ from logs import logger
 
 async def quote_cmd(client, message):
     if not message.reply_to_message:
-        return await message.reply(
-            "Balas pesan yang ingin dibuat quote."
-        )
+        return await message.edit("Balas pesan yang ingin dibuat quote.")
 
     reply = message.reply_to_message
     user = reply.from_user
 
+    # 1. Mengambil data pengguna
     if user:
         name = user.first_name or "User"
-
         if user.last_name:
             name += f" {user.last_name}"
 
@@ -33,32 +31,33 @@ async def quote_cmd(client, message):
         photo = ""
 
         try:
-            async for p in client.get_chat_photos(
-                user.id,
-                limit=1
-            ):
-                photo_file = await client.download_media(
-                    p.file_id,
-                    in_memory=True
-                )
-
-                photo = (
-                    "data:image/png;base64,"
-                    + base64.b64encode(
-                        photo_file.getvalue()
-                    ).decode()
-                )
+            async for p in client.get_chat_photos(user.id, limit=1):
+                photo_file = await client.download_media(p.file_id, in_memory=True)
+                photo = "data:image/png;base64," + base64.b64encode(photo_file.getvalue()).decode()
                 break
-
         except Exception:
             avatar = False
-
     else:
         name = "Unknown"
         avatar = False
         photo = ""
 
+    # 2. Mengekstrak Entities (Format Teks)
+    # Gunakan entities dari teks, atau caption_entities jika pesannya berupa media
+    raw_entities = reply.entities or reply.caption_entities or []
+    parsed_entities = []
 
+    for ent in raw_entities:
+        # Handle perbedaan versi Pyrogram: Pyrogram v2 menggunakan Enum, v1 menggunakan string
+        ent_type = ent.type.name.lower() if hasattr(ent.type, "name") else str(ent.type).lower()
+        
+        parsed_entities.append({
+            "type": ent_type,
+            "offset": ent.offset,
+            "length": ent.length
+        })
+
+    # 3. Membangun Payload JSON
     payload = {
         "messages": [
             {
@@ -67,27 +66,13 @@ async def quote_cmd(client, message):
                     "first_name": name,
                     "last_name": "",
                     "name": name,
-                    "photo": {
-                        "url": photo
-                    }
+                    "photo": {"url": photo}
                 },
-
-                "text": (
-                    reply.text
-                    or reply.caption
-                    or ""
-                ),
-
-                "entities": [],
-
+                "text": reply.text or reply.caption or "",
+                "entities": parsed_entities, # Memasukkan entities yang sudah diekstrak di sini
                 "avatar": avatar,
-
-                "media": {
-                    "url": ""
-                },
-
+                "media": {"url": ""},
                 "mediaType": "",
-
                 "replyMessage": {
                     "name": "",
                     "text": "",
@@ -96,7 +81,6 @@ async def quote_cmd(client, message):
                 }
             }
         ],
-
         "backgroundColor": "#292232",
         "width": 512,
         "height": 512,
@@ -106,64 +90,37 @@ async def quote_cmd(client, message):
         "emojiStyle": "apple"
     }
 
-
+    # 4. Mengirim Request & Konversi ke WEBP
     try:
-        await message.edit(
-            "⏳ Membuat sticker quote..."
-        )
+        await message.edit("⏳ Membuat sticker quote...")
 
-        r = requests.post(
-            "https://brat.siputzx.my.id/quoted",
-            json=payload,
-            timeout=60
-        )
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                "https://brat.siputzx.my.id/quoted", 
+                json=payload, 
+                timeout=60
+            ) as r:
+                if r.status != 200:
+                    error_text = await r.text()
+                    return await message.edit(f"Gagal membuat quote:\n{error_text}")
+                
+                content = await r.read()
 
-
-        if r.status_code != 200:
-            return await message.edit(
-                f"Gagal membuat quote:\n{r.text}"
-            )
-
-
-        # PNG → WEBP sticker
-        img = Image.open(
-            BytesIO(r.content)
-        )
-
-        img = img.convert(
-            "RGBA"
-        )
-
-        img.thumbnail(
-            (512, 512)
-        )
-
+        # Konversi PNG → WEBP
+        img = Image.open(BytesIO(content)).convert("RGBA")
+        img.thumbnail((512, 512))
 
         sticker = BytesIO()
         sticker.name = "quote.webp"
-
-
-        img.save(
-            sticker,
-            "WEBP",
-            quality=95,
-            method=6
-        )
-
+        img.save(sticker, "WEBP", quality=95, method=6)
         sticker.seek(0)
 
-
-        await message.reply_sticker(
-            sticker
-        )
-
+        await message.reply_sticker(sticker)
         await message.delete()
 
-
     except Exception as e:
-        await message.reply(
-            f"Error: {e}"
-        )
+        await message.edit(f"Error: {e}")
+
 
 async def brat_cmd(client, message):
     em = Emoji(client)
