@@ -154,13 +154,13 @@ class YoutubeAPI:
         }
 
         if as_video:
-    ydl_opts["format"] = (
-        "bestvideo[height<=?720][width<=?1280][ext=mp4]+bestaudio[ext=m4a]"
-        "/best[height<=?720][ext=mp4]"
-        "/best"
-    )
-else:
-    ydl_opts["format"] = "bestaudio[ext=m4a]/bestaudio/best"
+            ydl_opts["format"] = (
+                "bestvideo[height<=?720][width<=?1280][ext=mp4]+bestaudio[ext=m4a]"
+                "/best[height<=?720][ext=mp4]"
+                "/best"
+            )
+        else:
+            ydl_opts["format"] = "bestaudio[ext=m4a]/bestaudio/best"
 
         ydl = yt_dlp.YoutubeDL(ydl_opts)
         ytdl_data = await self.run_sync(ydl.extract_info, url, download=True)
