@@ -1,10 +1,12 @@
 import os
 import time
 import traceback
+import asyncio
 from datetime import timedelta
 from itertools import islice
 from typing import List
 from uuid import uuid4
+from yt_dlp import YoutubeDL
 
 import wget
 from pyrogram import enums
@@ -331,6 +333,21 @@ async def pinterst_search(client, message):
         logger.error(f"ttdl: {traceback.format_exc()}")
         return await message.reply(f"{em.gagal}**An error occurred:** `{str(er)}`")
 
+def yt_search(query):
+    ydl_opts = {
+        "quiet": True,
+        "extract_flat": True,
+        "skip_download": True,
+        "default_search": "ytsearch10",
+    }
+
+    with YoutubeDL(ydl_opts) as ydl:
+        return ydl.extract_info(
+            f"ytsearch10:{query}",
+            download=False
+        )
+
+
 async def youtube_search(client, message):
     em = Emoji(client)
     await em.get()
@@ -345,17 +362,34 @@ async def youtube_search(client, message):
 
     proses = await animate_proses(message, em.proses)
 
-    response = await Tools.fetch.post(
-        "https://api.siputzx.my.id/api/s/youtube",
-        json={"query": query},
-    )
-
-    if response.status_code != 200:
-        return await proses.edit(
-            f"{em.gagal}<b>Please try again later!</b>"
+    try:
+        result = await asyncio.to_thread(
+            yt_search,
+            query
         )
 
-    data = response.json().get("data", [])
+        data = []
+
+        for video in result.get("entries", []):
+            data.append(
+                {
+                    "title": video.get("title", "Unknown"),
+                    "url": f"https://youtube.com/watch?v={video.get('id')}",
+                    "id": video.get("id"),
+                    "thumbnail": video.get("thumbnail"),
+                    "channel": video.get("channel", "Unknown"),
+                    "duration": video.get(
+                        "duration_string",
+                        "0:00"
+                    ),
+                }
+            )
+
+    except Exception as e:
+        return await proses.edit(
+            f"{em.gagal}<b>Error:</b>\n"
+            f"<code>{e}</code>"
+        )
 
     if not data:
         return await proses.edit(
