@@ -1,50 +1,63 @@
 import os
+import base64
 import shutil
 import traceback
 import uuid
-
+import requests
 import aiofiles
 import aiohttp
 import asyncio
 import io
+from io import BytesIO
 from PIL import Image
 from pyrogram.types import InputMediaPhoto
 from helpers import Bing, Emoji, Tools, animate_proses
 from logs import logger
 
-import requests
-from io import BytesIO
-from pyrogram import Client, filters
-
 async def quote_cmd(client, message):
     if not message.reply_to_message:
-        return await message.reply("Balas pesan yang ingin dibuat quote.")
+        return await message.reply(
+            "Balas pesan yang ingin dibuat quote."
+        )
 
     reply = message.reply_to_message
     user = reply.from_user
 
     if user:
-        name = user.first_name
+        name = user.first_name or "User"
+
         if user.last_name:
             name += f" {user.last_name}"
 
         avatar = True
         photo = ""
+
         try:
-            async for p in client.get_chat_photos(user.id, limit=1):
-                photo_file = await client.download_media(p.file_id, in_memory=True)
-                photo = "data:image/png;base64," + (
-                    __import__("base64")
-                    .b64encode(photo_file.getvalue())
-                    .decode()
+            async for p in client.get_chat_photos(
+                user.id,
+                limit=1
+            ):
+                photo_file = await client.download_media(
+                    p.file_id,
+                    in_memory=True
+                )
+
+                photo = (
+                    "data:image/png;base64,"
+                    + base64.b64encode(
+                        photo_file.getvalue()
+                    ).decode()
                 )
                 break
+
         except Exception:
             avatar = False
+
     else:
         name = "Unknown"
         avatar = False
         photo = ""
+
 
     payload = {
         "messages": [
@@ -58,13 +71,23 @@ async def quote_cmd(client, message):
                         "url": photo
                     }
                 },
-                "text": reply.text or reply.caption or "",
+
+                "text": (
+                    reply.text
+                    or reply.caption
+                    or ""
+                ),
+
                 "entities": [],
+
                 "avatar": avatar,
+
                 "media": {
                     "url": ""
                 },
+
                 "mediaType": "",
+
                 "replyMessage": {
                     "name": "",
                     "text": "",
@@ -73,6 +96,7 @@ async def quote_cmd(client, message):
                 }
             }
         ],
+
         "backgroundColor": "#292232",
         "width": 512,
         "height": 512,
@@ -82,25 +106,64 @@ async def quote_cmd(client, message):
         "emojiStyle": "apple"
     }
 
+
     try:
+        await message.edit(
+            "⏳ Membuat sticker quote..."
+        )
+
         r = requests.post(
             "https://brat.siputzx.my.id/quoted",
             json=payload,
             timeout=60
         )
 
+
         if r.status_code != 200:
-            return await message.reply(
-                f"Gagal membuat quote: {r.text}"
+            return await message.edit(
+                f"Gagal membuat quote:\n{r.text}"
             )
 
-        img = BytesIO(r.content)
-        img.name = "quote.png"
 
-        await message.reply_photo(img)
+        # PNG → WEBP sticker
+        img = Image.open(
+            BytesIO(r.content)
+        )
+
+        img = img.convert(
+            "RGBA"
+        )
+
+        img.thumbnail(
+            (512, 512)
+        )
+
+
+        sticker = BytesIO()
+        sticker.name = "quote.webp"
+
+
+        img.save(
+            sticker,
+            "WEBP",
+            quality=95,
+            method=6
+        )
+
+        sticker.seek(0)
+
+
+        await message.reply_sticker(
+            sticker
+        )
+
+        await message.delete()
+
 
     except Exception as e:
-        await message.reply(f"Error: {e}")
+        await message.reply(
+            f"Error: {e}"
+        )
 
 async def brat_cmd(client, message):
     em = Emoji(client)
@@ -196,56 +259,153 @@ async def bratv2_cmd(client, message):
             "Example: `.iphone gimana`"
         )
 
-    proses = await animate_proses(message, em.proses)
+    proses = await animate_proses(
+        message,
+        em.proses
+    )
+
+    file_path = None
 
     try:
-        url = "https://brat.siputzx.my.id/v2/iphone-quoted"
+        # Ambil user target
+        if message.reply_to_message:
+            user = message.reply_to_message.from_user
+        else:
+            user = message.from_user
+
+
+        sender = "other"
+
+        # fallback avatar
+        image_url = (
+            "https://i.pinimg.com/564x/ac/09/cd/"
+            "ac09cda97d8a29bcf60ac4b99c5b270d.jpg"
+        )
+
+
+        if user:
+            sender = (
+                user.first_name
+                or "User"
+            )
+
+            if user.last_name:
+                sender += f" {user.last_name}"
+
+
+            # ambil foto profil
+            try:
+                async for p in client.get_chat_photos(
+                    user.id,
+                    limit=1
+                ):
+
+                    photo_file = await client.download_media(
+                        p.file_id,
+                        in_memory=True
+                    )
+
+
+                    encoded = base64.b64encode(
+                        photo_file.getvalue()
+                    ).decode()
+
+
+                    image_url = (
+                        "data:image/png;base64,"
+                        + encoded
+                    )
+
+                    break
+
+            except Exception:
+                pass
+
+
+
+        url = (
+            "https://brat.siputzx.my.id/"
+            "v2/iphone-quoted"
+        )
+
 
         payload = {
-            "sender": "other",
+            "sender": sender,
             "message": prompt,
-            "imageUrl": "https://i.pinimg.com/564x/ac/09/cd/ac09cda97d8a29bcf60ac4b99c5b270d.jpg",
+
+            "imageUrl": image_url,
+
             "timestamp": "21.02",
             "time": "21.02",
+
             "status": {
                 "carrierName": "INDOSAT OORE...",
                 "batteryPercentage": 88,
                 "signalStrength": 4,
                 "wifi": True
             },
+
             "backgroundUrl": "",
+
             "readStatus": True,
+
             "emojiStyle": "apple"
         }
+
+
 
         response = await Tools.fetch.post(
             url,
             json=payload
         )
 
+
         if response.status_code != 200:
             raise Exception(
-                f"API Error: {response.status_code}\n{response.text}"
+                f"API Error: {response.status_code}\n"
+                f"{response.text}"
             )
 
-        file_path = f"iphone_{uuid.uuid4().hex}.png"
 
-        with open(file_path, "wb") as f:
-            f.write(response.content)
+
+        file_path = (
+            f"iphone_{uuid.uuid4().hex}.png"
+        )
+
+
+        with open(
+            file_path,
+            "wb"
+        ) as f:
+            f.write(
+                response.content
+            )
+
 
         await client.send_photo(
             chat_id=message.chat.id,
             photo=file_path,
-            caption=f"{em.sukses}**Generated by {client.me.mention}**"
+            caption=(
+                f"{em.sukses}"
+                f"**Generated by "
+                f"{client.me.mention}**"
+            )
         )
 
-        os.remove(file_path)
+
         await proses.delete()
+
+
 
     except Exception as e:
         await proses.edit(
             f"{em.gagal}**ERROR:**\n`{e}`"
         )
+
+
+    finally:
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
 
 async def bingimg_cmd(client, message):
     emo = Emoji(client)
