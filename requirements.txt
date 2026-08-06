@@ -64,7 +64,7 @@ pyrotgfork==2.2.23
 speedtest-cli
 python-telegram-bot
 telethon
-yt-dlp[default]>=2025.12.8
+###yt-dlp[default]>=2025.12.8
 youtube-search
 youtube-search-python
 gpytranslate
@@ -73,4 +73,4 @@ git+https://github.com/googleapis/python-genai.git@main
 git+https://github.com/FerlyKurniawan/pyrofork
 sepgram @ git+https://github.com/iyann1255/sepgram@v2.0.230
 git+https://github.com/FerlyKurniawan/hydrogram@dev
-
+git+https://github.com/yt-dlp/yt-dlp.git@master
