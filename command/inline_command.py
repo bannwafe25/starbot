@@ -1649,12 +1649,12 @@ async def inline_youtube(results, inline):
     buttons = []
 
     for idx, video in enumerate(sliced):
-    title = video.get("title", "Unknown")
-    url = video.get("url")
-    duration = video.get("duration", "0:00")
-    channel = video.get("channel", "Unknown")
+        title = video.get("title", "Unknown")
+        url = video.get("url")
+        duration = video.get("duration", "0:00")
+        channel = video.get("channel", "Unknown")
 
-    caption += f"""
+        caption += f"""
 <b>{idx + 1}. 🎵 {title}</b>
 👤 {channel}
 ⏱ {duration}
@@ -1662,14 +1662,14 @@ async def inline_youtube(results, inline):
 
 """
 
-    buttons.append(
-        [
-            (
-                f"⬇️ Download {title[:20]}",
-                f"dlytsearch_{uniq}_{page * per_page + idx}",
-            )
-        ]
-    )
+        buttons.append(
+            [
+                (
+                    f"⬇️ Download {title[:20]}",
+                    f"dlytsearch_{uniq}_{page * per_page + idx}",
+                )
+            ]
+        )
 
     caption += "</blockquote>"
 
