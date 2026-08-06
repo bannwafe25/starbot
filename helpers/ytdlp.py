@@ -154,10 +154,13 @@ class YoutubeAPI:
                 "outtmpl": "downloads/%(title)s.%(ext)s",
                 "noplaylist": True,
                 "ignoreerrors": False,
+                "retries": 3,
+                "fragment_retries": 3,
                 "extractor_args": {
                     "youtube": {
                         "player_client": [
-                            "android"
+                            "android",
+                            "web"
                         ]
                     }
                 },
@@ -165,13 +168,15 @@ class YoutubeAPI:
 
             if as_video:
                 ydl_opts["format"] = (
-                    "best[ext=mp4]/"
-                    "bestvideo+bestaudio/"
+                    "bv*+ba/"
+                    "b[ext=mp4]/"
                     "best"
                 )
             else:
                 ydl_opts["format"] = (
-                    "bestaudio/best"
+                    "ba/"
+                    "bestaudio/"
+                    "best"
                 )
 
             ydl = yt_dlp.YoutubeDL(ydl_opts)
