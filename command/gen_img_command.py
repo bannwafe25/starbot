@@ -12,6 +12,96 @@ from pyrogram.types import InputMediaPhoto
 from helpers import Bing, Emoji, Tools, animate_proses
 from logs import logger
 
+import requests
+from io import BytesIO
+from pyrogram import Client, filters
+
+async def quote_cmd(client, message):
+    if not message.reply_to_message:
+        return await message.reply("Balas pesan yang ingin dibuat quote.")
+
+    reply = message.reply_to_message
+    user = reply.from_user
+
+    if user:
+        name = user.first_name
+        if user.last_name:
+            name += f" {user.last_name}"
+
+        avatar = True
+        photo = ""
+        try:
+            async for p in client.get_chat_photos(user.id, limit=1):
+                photo_file = await client.download_media(p.file_id, in_memory=True)
+                photo = "data:image/png;base64," + (
+                    __import__("base64")
+                    .b64encode(photo_file.getvalue())
+                    .decode()
+                )
+                break
+        except Exception:
+            avatar = False
+    else:
+        name = "Unknown"
+        avatar = False
+        photo = ""
+
+    payload = {
+        "messages": [
+            {
+                "from": {
+                    "id": user.id if user else 0,
+                    "first_name": name,
+                    "last_name": "",
+                    "name": name,
+                    "photo": {
+                        "url": photo
+                    }
+                },
+                "text": reply.text or reply.caption or "",
+                "entities": [],
+                "avatar": avatar,
+                "media": {
+                    "url": ""
+                },
+                "mediaType": "",
+                "replyMessage": {
+                    "name": "",
+                    "text": "",
+                    "entities": [],
+                    "chatId": message.chat.id
+                }
+            }
+        ],
+        "backgroundColor": "#292232",
+        "width": 512,
+        "height": 512,
+        "scale": 2,
+        "type": "quote",
+        "format": "png",
+        "emojiStyle": "apple"
+    }
+
+    try:
+        r = requests.post(
+            "https://brat.siputzx.my.id/quoted",
+            json=payload,
+            timeout=60
+        )
+
+        if r.status_code != 200:
+            return await message.reply(
+                f"Gagal membuat quote: {r.text}"
+            )
+
+        img = BytesIO(r.content)
+        img.name = "quote.png"
+
+        await message.reply_photo(img)
+
+    except Exception as e:
+        await message.reply(f"Error: {e}")
+
 async def brat_cmd(client, message):
     em = Emoji(client)
     await em.get()
