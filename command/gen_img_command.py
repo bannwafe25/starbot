@@ -21,43 +21,44 @@ async def quote_cmd(client, message):
     reply = message.reply_to_message
     user = reply.from_user
 
-    # 1. Mengambil data pengguna
     if user:
         name = user.first_name or "User"
         if user.last_name:
             name += f" {user.last_name}"
 
-        avatar = True
-        photo = ""
+        # 1. Mengambil data pengguna dengan penanganan kegagalan yang lebih baik.
+        avatar = True  # Selalu biarkan True agar lingkaran foto selalu muncul.
+        photo = ""     # Inisialisasi URL sebagai string kosong.
 
         try:
+            # Menggunakan iterator asinkron untuk mendapatkan satu foto terbaru.
             async for p in client.get_chat_photos(user.id, limit=1):
+                # Mengunduh foto ke dalam memori.
                 photo_file = await client.download_media(p.file_id, in_memory=True)
+                # Mengodekan foto sebagai data URI base64.
                 photo = "data:image/png;base64," + base64.b64encode(photo_file.getvalue()).decode()
-                break
+                break # Berhenti setelah mendapatkan satu.
         except Exception:
-            avatar = False
+            # Gagal mengambil foto (misalnya, privasi pengguna atau bot tidak bisa melihat).
+            # Biarkan avatar = True dan photo = "" agar API menggunakan default inisial.
+            pass 
     else:
         name = "Unknown"
-        avatar = False
-        photo = ""
+        avatar = True  # Biarkan True agar ada lingkaran default.
+        photo = ""     # URL kosong.
 
-    # 2. Mengekstrak Entities (Format Teks)
-    # Gunakan entities dari teks, atau caption_entities jika pesannya berupa media
+    # 2. Mengekstrak Entities (Format Teks) seperti sebelumnya.
     raw_entities = reply.entities or reply.caption_entities or []
     parsed_entities = []
-
     for ent in raw_entities:
-        # Handle perbedaan versi Pyrogram: Pyrogram v2 menggunakan Enum, v1 menggunakan string
         ent_type = ent.type.name.lower() if hasattr(ent.type, "name") else str(ent.type).lower()
-        
         parsed_entities.append({
             "type": ent_type,
             "offset": ent.offset,
             "length": ent.length
         })
 
-    # 3. Membangun Payload JSON
+    # 3. Membangun Payload JSON.
     payload = {
         "messages": [
             {
@@ -66,11 +67,11 @@ async def quote_cmd(client, message):
                     "first_name": name,
                     "last_name": "",
                     "name": name,
-                    "photo": {"url": photo}
+                    "photo": {"url": photo} # Ini akan menjadi URI base64 atau ""
                 },
                 "text": reply.text or reply.caption or "",
-                "entities": parsed_entities, # Memasukkan entities yang sudah diekstrak di sini
-                "avatar": avatar,
+                "entities": parsed_entities, # Entities teks
+                "avatar": avatar, # Selalu True
                 "media": {"url": ""},
                 "mediaType": "",
                 "replyMessage": {
@@ -81,7 +82,7 @@ async def quote_cmd(client, message):
                 }
             }
         ],
-        "backgroundColor": "#292232",
+        "backgroundColor": "#292232", # Warna latar belakang gelembung.
         "width": 512,
         "height": 512,
         "scale": 2,
@@ -90,7 +91,7 @@ async def quote_cmd(client, message):
         "emojiStyle": "apple"
     }
 
-    # 4. Mengirim Request & Konversi ke WEBP
+    # 4. Mengirim Request & Konversi ke WEBP seperti sebelumnya.
     try:
         await message.edit("⏳ Membuat sticker quote...")
 
@@ -120,7 +121,6 @@ async def quote_cmd(client, message):
 
     except Exception as e:
         await message.edit(f"Error: {e}")
-
 
 async def brat_cmd(client, message):
     em = Emoji(client)
