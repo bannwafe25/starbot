@@ -20,67 +20,109 @@ from datetime import datetime
 QUOTE_API = "https://brat.siputzx.my.id/quoted"
 
 
+QUOTE_BACKGROUNDS = [
+    "#292232",
+    "#1E1E2E",
+    "#313244",
+    "#45475A",
+    "#181825",
+    "#11111B",
+    "#24273A",
+    "#3B4252",
+    "#2E3440",
+    "#4C566A"
+]
+
+
 async def get_avatar_url(client, user_id):
     try:
-        photo = await client.get_chat_photos(
+        photos = client.get_chat_photos(
             user_id,
             limit=1
-        ).__anext__()
-
-        file = await client.download_media(
-            photo,
-            in_memory=True
         )
 
-        file.seek(0)
-
-        async with aiohttp.ClientSession() as session:
-            form = aiohttp.FormData()
-            form.add_field(
-                "file",
-                file,
-                filename="avatar.jpg",
-                content_type="image/jpeg"
+        async for photo in photos:
+            file = await client.download_media(
+                photo,
+                in_memory=True
             )
 
-            async with session.post(
-                "https://telegra.ph/upload",
-                data=form
-            ) as res:
-                data = await res.json()
+            if not file:
+                return ""
 
-        return "https://telegra.ph" + data[0]["src"]
+            file.seek(0)
+
+            async with aiohttp.ClientSession() as session:
+
+                form = aiohttp.FormData()
+
+                form.add_field(
+                    "file",
+                    file,
+                    filename="avatar.jpg",
+                    content_type="image/jpeg"
+                )
+
+                async with session.post(
+                    "https://telegra.ph/upload",
+                    data=form
+                ) as resp:
+
+                    result = await resp.json()
+
+                    return (
+                        "https://telegra.ph"
+                        + result[0]["src"]
+                    )
 
     except Exception:
         return ""
 
 async def quote_cmd(client, message):
 
-    # Ambil teks
+    # Ambil pesan
     if message.reply_to_message:
+
+        target = message.reply_to_message
+
         text = (
-            message.reply_to_message.text
-            or message.reply_to_message.caption
+            target.text
+            or target.caption
             or ""
         )
 
-        user = message.reply_to_message.from_user
+        user = target.from_user
 
     else:
-        text = message.text.split(
+
+        args = message.text.split(
             None,
             1
-        )[1] if len(message.text.split()) > 1 else ""
+        )
+
+        text = (
+            args[1]
+            if len(args) > 1
+            else ""
+        )
 
         user = message.from_user
 
 
     if not text:
+
         return await message.reply(
-            "Balas pesan atau beri teks.\n\n"
+            "❌ Balas pesan atau masukkan teks\n\n"
             "Contoh:\n"
-            ".q halo dunia\n"
-            "atau reply pesan lalu .q"
+            "`.q halo dunia`\n\n"
+            "atau reply pesan lalu `.q`"
+        )
+
+
+    if not user:
+
+        return await message.reply(
+            "❌ User tidak ditemukan"
         )
 
 
@@ -91,64 +133,156 @@ async def quote_cmd(client, message):
 
 
     payload = {
+
         "messages": [
             {
+
                 "from": {
+
                     "id": user.id,
-                    "first_name": user.first_name or "User",
-                    "last_name": user.last_name or "",
-                    "name": user.first_name or "User",
+
+                    "first_name":
+                        user.first_name
+                        or "User",
+
+                    "last_name":
+                        user.last_name
+                        or "",
+
+                    "name":
+                        user.first_name
+                        or "User",
+
                     "photo": {
+
                         "url": avatar
+
                     }
+
                 },
+
+
                 "text": text,
+
+
                 "entities": [],
+
+
                 "avatar": True,
+
+
                 "media": {
+
                     "url": ""
+
                 },
+
+
                 "mediaType": "",
+
+
                 "replyMessage": {
+
                     "name": "",
+
                     "text": "",
+
                     "entities": [],
-                    "chatId": message.chat.id
+
+                    "chatId":
+                        message.chat.id
+
                 }
+
             }
+
         ],
-        "backgroundColor": "#292232",
+
+
+        "backgroundColor":
+            random.choice(
+                QUOTE_BACKGROUNDS
+            ),
+
+
         "width": 512,
+
         "height": 512,
+
         "scale": 2,
+
         "type": "quote",
+
         "format": "png",
+
         "emojiStyle": "apple"
+
     }
 
 
     try:
+
         async with aiohttp.ClientSession() as session:
+
             async with session.post(
                 QUOTE_API,
                 json=payload
             ) as resp:
 
+
                 if resp.status != 200:
+
                     return await message.reply(
-                        f"API error: {resp.status}"
+                        f"❌ API Error: {resp.status}"
                     )
+
 
                 image = await resp.read()
 
 
-        await message.reply_photo(
-            photo=image
+
+        # PNG -> WEBP Sticker
+
+        img = Image.open(
+            BytesIO(image)
         )
 
+
+        img = img.convert(
+            "RGBA"
+        )
+
+
+        img.thumbnail(
+            (512, 512)
+        )
+
+
+        sticker = BytesIO()
+
+        sticker.name = "quote.webp"
+
+
+        img.save(
+            sticker,
+            "WEBP",
+            quality=95,
+            method=6
+        )
+
+
+        sticker.seek(0)
+
+
+        await message.reply_sticker(
+            sticker
+        )
+
+
     except Exception as e:
+
         await message.reply(
-            f"Error: {e}"
+            f"❌ Error: {e}"
         )
 
 async def brat_cmd(client, message):
