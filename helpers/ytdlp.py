@@ -144,66 +144,71 @@ class YoutubeAPI:
     async def download(self, url, as_video=False):
         url = stream.sanitize_url(url)
 
-        ydl_opts = {
-            "quiet": True,
-            "no_warnings": True,
-            "nocheckcertificate": True,
-            "geo_bypass": True,
-            "cookiefile": cookies(),
-            "outtmpl": "downloads/%(title)s.%(ext)s",
-            "noplaylist": True,
-            "ignoreerrors": False,
-            "extractor_args": {
-                "youtube": {
-                    "player_client": [
-                        "android"
-                    ]
-                }
-            },
-        }
+        try:
+            ydl_opts = {
+                "quiet": True,
+                "no_warnings": True,
+                "nocheckcertificate": True,
+                "geo_bypass": True,
+                "cookiefile": cookies(),
+                "outtmpl": "downloads/%(title)s.%(ext)s",
+                "noplaylist": True,
+                "ignoreerrors": False,
+                "extractor_args": {
+                    "youtube": {
+                        "player_client": [
+                            "android"
+                        ]
+                    }
+                },
+            }
 
-        if as_video:
-            ydl_opts["format"] = (
-                "best[ext=mp4]/"
-                "bestvideo+bestaudio/"
-                "best"
+            if as_video:
+                ydl_opts["format"] = (
+                    "best[ext=mp4]/"
+                    "bestvideo+bestaudio/"
+                    "best"
+                )
+            else:
+                ydl_opts["format"] = (
+                    "bestaudio/best"
+                )
+
+            ydl = yt_dlp.YoutubeDL(ydl_opts)
+
+            ytdl_data = await self.run_sync(
+                ydl.extract_info,
+                url,
+                download=True
             )
-        else:
-            ydl_opts["format"] = (
-                "bestaudio/best"
+
+            file_name = ydl.prepare_filename(ytdl_data)
+
+            inpoh = "Video" if as_video else "Audio"
+
+            videoid = ytdl_data.get("id")
+            title = ytdl_data.get("title", "Unknown")
+
+            yt_url = f"https://youtu.be/{videoid}"
+
+            duration = int(
+                ytdl_data.get("duration", 0)
             )
 
-        ydl = yt_dlp.YoutubeDL(ydl_opts)
+            channel = ytdl_data.get(
+                "uploader",
+                "Unknown"
+            )
 
-        ytdl_data = await self.run_sync(
-            ydl.extract_info,
-            url,
-            download=True
-        )
+            views = f"{ytdl_data.get('view_count', 0):,}".replace(",", ".")
 
-        file_name = ydl.prepare_filename(ytdl_data)
+            thumb = (
+                f"https://img.youtube.com/vi/{videoid}/hqdefault.jpg"
+                if videoid
+                else None
+            )
 
-        inpoh = "Video" if as_video else "Audio"
-
-        videoid = ytdl_data.get("id")
-        title = ytdl_data.get("title", "Unknown")
-
-        yt_url = f"https://youtu.be/{videoid}"
-
-        duration = int(
-            ytdl_data.get("duration", 0)
-        )
-
-        channel = ytdl_data.get(
-            "uploader",
-            "Unknown"
-        )
-
-        views = f"{ytdl_data.get('view_count', 0):,}".replace(",", ".")
-
-        thumb = f"https://img.youtube.com/vi/{videoid}/hqdefault.jpg"
-
-        data_ytp = """
+            data_ytp = """
 <blockquote expandable><b>「💡 Information {}」</b>
 🏷 Title: <code>{}</code>
 🧭 Duration: <code>{}</code>
@@ -213,24 +218,24 @@ class YoutubeAPI:
 ⚡Downloaded By: {}</blockquote>
 """
 
-        return (
-            file_name,
-            inpoh,
-            title,
-            duration,
-            views,
-            channel,
-            yt_url,
-            videoid,
-            thumb,
-            data_ytp,
-        )
+            return (
+                file_name,
+                inpoh,
+                title,
+                duration,
+                views,
+                channel,
+                yt_url,
+                videoid,
+                thumb,
+                data_ytp,
+            )
 
-    except Exception:
-        print(
-            f"ERROR DOWNLOAD YOUTUBE:\n{traceback.format_exc()}"
-        )
-        raise
+        except Exception:
+            print(
+                f"ERROR DOWNLOAD YOUTUBE:\n{traceback.format_exc()}"
+            )
+            raise
 
     def run_sync(self, func, *args, **kwargs):
         return asyncio.get_event_loop().run_in_executor(
