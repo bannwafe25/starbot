@@ -34,21 +34,17 @@ QUOTE_BACKGROUNDS = [
 ]
 
 
-async def get_avatar_url(client, user_id):
+async def upload_avatar(client, user_id):
     try:
-        photos = client.get_chat_photos(
+        async for photo in client.get_chat_photos(
             user_id,
             limit=1
-        )
+        ):
 
-        async for photo in photos:
             file = await client.download_media(
                 photo,
                 in_memory=True
             )
-
-            if not file:
-                return ""
 
             file.seek(0)
 
@@ -80,29 +76,28 @@ async def get_avatar_url(client, user_id):
 
 async def quote_cmd(client, message):
 
-    # Ambil pesan
     if message.reply_to_message:
 
-        target = message.reply_to_message
+        msg = message.reply_to_message
 
         text = (
-            target.text
-            or target.caption
+            msg.text
+            or msg.caption
             or ""
         )
 
-        user = target.from_user
+        user = msg.from_user
 
     else:
 
-        args = message.text.split(
+        split = message.text.split(
             None,
             1
         )
 
         text = (
-            args[1]
-            if len(args) > 1
+            split[1]
+            if len(split) > 1
             else ""
         )
 
@@ -110,23 +105,14 @@ async def quote_cmd(client, message):
 
 
     if not text:
-
         return await message.reply(
-            "❌ Balas pesan atau masukkan teks\n\n"
+            "Reply pesan atau masukkan teks.\n\n"
             "Contoh:\n"
-            "`.q halo dunia`\n\n"
-            "atau reply pesan lalu `.q`"
+            ".q hello world"
         )
 
 
-    if not user:
-
-        return await message.reply(
-            "❌ User tidak ditemukan"
-        )
-
-
-    avatar = await get_avatar_url(
+    avatar = await upload_avatar(
         client,
         user.id
     )
@@ -136,7 +122,6 @@ async def quote_cmd(client, message):
 
         "messages": [
             {
-
                 "from": {
 
                     "id": user.id,
@@ -154,32 +139,21 @@ async def quote_cmd(client, message):
                         or "User",
 
                     "photo": {
-
                         "url": avatar
-
                     }
-
                 },
-
 
                 "text": text,
 
-
                 "entities": [],
-
 
                 "avatar": True,
 
-
                 "media": {
-
                     "url": ""
-
                 },
 
-
                 "mediaType": "",
-
 
                 "replyMessage": {
 
@@ -191,19 +165,14 @@ async def quote_cmd(client, message):
 
                     "chatId":
                         message.chat.id
-
                 }
-
             }
-
         ],
-
 
         "backgroundColor":
             random.choice(
                 QUOTE_BACKGROUNDS
             ),
-
 
         "width": 512,
 
@@ -216,7 +185,6 @@ async def quote_cmd(client, message):
         "format": "png",
 
         "emojiStyle": "apple"
-
     }
 
 
@@ -231,29 +199,27 @@ async def quote_cmd(client, message):
 
 
                 if resp.status != 200:
-
                     return await message.reply(
-                        f"❌ API Error: {resp.status}"
+                        f"API Error {resp.status}"
                     )
 
 
-                image = await resp.read()
+                png = await resp.read()
 
 
 
-        # PNG -> WEBP Sticker
+        # PNG -> Sticker WEBP
 
-        img = Image.open(
-            BytesIO(image)
+        image = Image.open(
+            BytesIO(png)
         )
 
-
-        img = img.convert(
+        image = image.convert(
             "RGBA"
         )
 
 
-        img.thumbnail(
+        image.thumbnail(
             (512, 512)
         )
 
@@ -263,7 +229,7 @@ async def quote_cmd(client, message):
         sticker.name = "quote.webp"
 
 
-        img.save(
+        image.save(
             sticker,
             "WEBP",
             quality=95,
@@ -282,7 +248,7 @@ async def quote_cmd(client, message):
     except Exception as e:
 
         await message.reply(
-            f"❌ Error: {e}"
+            f"Error: {e}"
         )
 
 async def brat_cmd(client, message):
