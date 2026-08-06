@@ -3,7 +3,7 @@ from helpers import CMD
 
 IS_PRO = True
 
-__MODULES__ = "bingimg"
+__MODULES__ = "Bingimg"
 __HELP__ = """<blockquote>Command Help **Bingai**</blockquote>
 <blockquote expandable>--**Basic Commands**--
 
