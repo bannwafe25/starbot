@@ -142,39 +142,37 @@ class YoutubeAPI:
             return False
 
     async def download(self, url, as_video=False):
-    url = stream.sanitize_url(url)
+        url = stream.sanitize_url(url)
 
-    ydl_opts = {
-        "quiet": True,
-        "no_warnings": True,
-        "nocheckcertificate": True,
-        "geo_bypass": True,
-        "cookiefile": cookies(),
-        "outtmpl": "downloads/%(title)s.%(ext)s",
-        "noplaylist": True,
-        "ignoreerrors": False,
+        ydl_opts = {
+            "quiet": True,
+            "no_warnings": True,
+            "nocheckcertificate": True,
+            "geo_bypass": True,
+            "cookiefile": cookies(),
+            "outtmpl": "downloads/%(title)s.%(ext)s",
+            "noplaylist": True,
+            "ignoreerrors": False,
+            "extractor_args": {
+                "youtube": {
+                    "player_client": [
+                        "android"
+                    ]
+                }
+            },
+        }
 
-        "extractor_args": {
-            "youtube": {
-                "player_client": [
-                    "android"
-                ]
-            }
-        },
-    }
+        if as_video:
+            ydl_opts["format"] = (
+                "best[ext=mp4]/"
+                "bestvideo+bestaudio/"
+                "best"
+            )
+        else:
+            ydl_opts["format"] = (
+                "bestaudio/best"
+            )
 
-    if as_video:
-        ydl_opts["format"] = (
-            "best[ext=mp4]/"
-            "bestvideo+bestaudio/"
-            "best"
-        )
-    else:
-        ydl_opts["format"] = (
-            "bestaudio/best"
-        )
-
-    try:
         ydl = yt_dlp.YoutubeDL(ydl_opts)
 
         ytdl_data = await self.run_sync(
@@ -190,17 +188,10 @@ class YoutubeAPI:
         videoid = ytdl_data.get("id")
         title = ytdl_data.get("title", "Unknown")
 
-        yt_url = (
-            f"https://youtu.be/{videoid}"
-            if videoid
-            else url
-        )
+        yt_url = f"https://youtu.be/{videoid}"
 
         duration = int(
-            ytdl_data.get(
-                "duration",
-                0
-            )
+            ytdl_data.get("duration", 0)
         )
 
         channel = ytdl_data.get(
@@ -208,19 +199,12 @@ class YoutubeAPI:
             "Unknown"
         )
 
-        views = f"{ytdl_data.get('view_count', 0):,}".replace(
-            ",",
-            "."
-        )
+        views = f"{ytdl_data.get('view_count', 0):,}".replace(",", ".")
 
-        thumb = (
-            f"https://img.youtube.com/vi/{videoid}/hqdefault.jpg"
-            if videoid
-            else None
-        )
+        thumb = f"https://img.youtube.com/vi/{videoid}/hqdefault.jpg"
 
         data_ytp = """
-<blockquote expandable><b>   「💡 Information {}」</b>
+<blockquote expandable><b>「💡 Information {}」</b>
 🏷 Title: <code>{}</code>
 🧭 Duration: <code>{}</code>
 👀 Views: <code>{}</code>
