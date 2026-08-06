@@ -17,7 +17,7 @@ from helpers import Bing, Emoji, Tools, animate_proses
 from logs import logger
 from datetime import datetime
 
-async def quoted_cmd(client, message):
+async def quote_cmd(client, message):
     em = Emoji(client)
     await em.get()
 
