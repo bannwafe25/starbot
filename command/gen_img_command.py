@@ -7,6 +7,7 @@ import requests
 import aiofiles
 import aiohttp
 import asyncio
+import random
 import io
 from io import BytesIO
 from PIL import Image
@@ -22,68 +23,40 @@ async def quote_cmd(client, message):
     reply = message.reply_to_message
     user = reply.from_user
 
-    if user:
-        name = user.first_name or "User"
-        if user.last_name:
-            name += f" {user.last_name}"
+    # --- FITUR WARNA BACKGROUND ACAK ---
+    # Anda bisa menambah atau mengubah kode warna HEX di bawah ini sesuai selera
+    bg_colors = [
+        "#292232", # Ungu Gelap (Default sebelumnya)
+        "#1b1429", # Ungu Sangat Gelap
+        "#2c3e50", # Biru Dongker
+        "#16a085", # Hijau Tosca Gelap
+        "#8e44ad", # Ungu Terang
+        "#2c2c54", # Indigo Gelap
+        "#b33939", # Merah Bata Gelap
+        "#3d3d3d", # Abu-abu Gelap
+        "#d35400"  # Oranye Gelap
+    ]
+    selected_color = random.choice(bg_colors)
+    # -----------------------------------
 
-        # 1. Mengambil data pengguna dengan penanganan kegagalan yang lebih baik.
-        avatar = True  # Selalu biarkan True agar lingkaran foto selalu muncul.
-        photo = ""     # Inisialisasi URL sebagai string kosong.
-
-        try:
-            # Menggunakan iterator asinkron untuk mendapatkan satu foto terbaru.
-            async for p in client.get_chat_photos(user.id, limit=1):
-                # Mengunduh foto ke dalam memori.
-                photo_file = await client.download_media(p.file_id, in_memory=True)
-                # Mengodekan foto sebagai data URI base64.
-                photo = "data:image/png;base64," + base64.b64encode(photo_file.getvalue()).decode()
-                break # Berhenti setelah mendapatkan satu.
-        except Exception:
-            # Gagal mengambil foto (misalnya, privasi pengguna atau bot tidak bisa melihat).
-            # Biarkan avatar = True dan photo = "" agar API menggunakan default inisial.
-            pass 
-    else:
-        name = "Unknown"
-        avatar = True  # Biarkan True agar ada lingkaran default.
-        photo = ""     # URL kosong.
-
-    # 2. Mengekstrak Entities (Format Teks) seperti sebelumnya.
-    raw_entities = reply.entities or reply.caption_entities or []
-    parsed_entities = []
-    for ent in raw_entities:
-        ent_type = ent.type.name.lower() if hasattr(ent.type, "name") else str(ent.type).lower()
-        parsed_entities.append({
-            "type": ent_type,
-            "offset": ent.offset,
-            "length": ent.length
-        })
-
-    # 3. Membangun Payload JSON.
+    # 1. Kerangka Dasar JSON (Boilerplate)
     payload = {
-        "messages": [
-            {
-                "from": {
-                    "id": user.id if user else 0,
-                    "first_name": name,
-                    "last_name": "",
-                    "name": name,
-                    "photo": {"url": photo} # Ini akan menjadi URI base64 atau ""
-                },
-                "text": reply.text or reply.caption or "",
-                "entities": parsed_entities, # Entities teks
-                "avatar": avatar, # Selalu True
-                "media": {"url": ""},
-                "mediaType": "",
-                "replyMessage": {
-                    "name": "",
-                    "text": "",
-                    "entities": [],
-                    "chatId": message.chat.id
-                }
-            }
-        ],
-        "backgroundColor": "#292232", # Warna latar belakang gelembung.
+        "messages": [{
+            "from": {
+                "id": 1,
+                "first_name": "user",
+                "last_name": "",
+                "name": "user",
+                "photo": {"url": ""}
+            },
+            "text": "",
+            "entities": [],
+            "avatar": True,
+            "media": {"url": ""},
+            "mediaType": "",
+            "replyMessage": {}
+        }],
+        "backgroundColor": selected_color, # <-- Memasukkan warna acak ke sini
         "width": 512,
         "height": 512,
         "scale": 2,
@@ -92,9 +65,55 @@ async def quote_cmd(client, message):
         "emojiStyle": "apple"
     }
 
-    # 4. Mengirim Request & Konversi ke WEBP seperti sebelumnya.
+    # 2. Menimpa (Overwrite) Data Pengguna & Foto
+    if user:
+        name = user.first_name or "User"
+        last_name = user.last_name or ""
+        full_name = f"{name} {last_name}".strip()
+
+        payload["messages"][0]["from"].update({
+            "id": user.id,
+            "first_name": name,
+            "last_name": last_name,
+            "name": full_name
+        })
+
+        try:
+            async for p in client.get_chat_photos(user.id, limit=1):
+                photo_file = await client.download_media(p.file_id, in_memory=True)
+                photo_b64 = "data:image/png;base64," + base64.b64encode(photo_file.getvalue()).decode()
+                payload["messages"][0]["from"]["photo"]["url"] = photo_b64
+                break
+        except Exception:
+            pass 
+
+    # 3. Menimpa Teks & Entities (Format Tebal, Miring, dll)
+    payload["messages"][0]["text"] = reply.text or reply.caption or ""
+    
+    raw_entities = reply.entities or reply.caption_entities or []
+    for ent in raw_entities:
+        ent_type = ent.type.name.lower() if hasattr(ent.type, "name") else str(ent.type).lower()
+        payload["messages"][0]["entities"].append({
+            "type": ent_type,
+            "offset": ent.offset,
+            "length": ent.length
+        })
+
+    # 4. (Ekstra) Menimpa Data Pesan Balasan (Jika ada)
+    if reply.reply_to_message:
+        rep_to = reply.reply_to_message
+        rep_user = rep_to.from_user
+        rep_name = rep_user.first_name if rep_user else "Unknown"
+        
+        payload["messages"][0]["replyMessage"] = {
+            "name": rep_name,
+            "text": rep_to.text or rep_to.caption or "Media",
+            "chatId": rep_to.chat.id
+        }
+
+    # 5. Mengirim Request & Konversi WEBP
     try:
-        await message.edit("⏳ Membuat sticker quote...")
+        await message.edit("⏳ Merakit stiker quote...")
 
         async with aiohttp.ClientSession() as session:
             async with session.post(
@@ -104,11 +123,10 @@ async def quote_cmd(client, message):
             ) as r:
                 if r.status != 200:
                     error_text = await r.text()
-                    return await message.edit(f"Gagal membuat quote:\n{error_text}")
+                    return await message.edit(f"Gagal merakit quote:\n{error_text}")
                 
                 content = await r.read()
 
-        # Konversi PNG → WEBP
         img = Image.open(BytesIO(content)).convert("RGBA")
         img.thumbnail((512, 512))
 
@@ -122,6 +140,7 @@ async def quote_cmd(client, message):
 
     except Exception as e:
         await message.edit(f"Error: {e}")
+
 
 async def brat_cmd(client, message):
     em = Emoji(client)
