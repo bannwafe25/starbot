@@ -13,6 +13,7 @@ from PIL import Image
 from pyrogram.types import InputMediaPhoto
 from helpers import Bing, Emoji, Tools, animate_proses
 from logs import logger
+from datetime import datetime
 
 async def quote_cmd(client, message):
     if not message.reply_to_message:
@@ -204,165 +205,84 @@ async def brat_cmd(client, message):
             f"{em.gagal}**ERROR:**\n`{e}`"
         )
 
+import base64
+import aiohttp
+from datetime import datetime
+from io import BytesIO
+
 async def bratv2_cmd(client, message):
-    em = Emoji(client)
-    await em.get()
+    if not message.reply_to_message:
+        return await message.edit("Balas pesan yang ingin dibuat fake chat iPhone.")
 
-    prompt = client.get_text(message)
+    reply = message.reply_to_message
 
-    if not prompt:
-        return await message.reply(
-            f"{em.gagal}**Please provide text!**\n"
-            "Example: `.iphone gimana`"
-        )
+    # 1. Menentukan waktu pesan (jam & menit)
+    # Jika pesan memiliki tanggal, gunakan itu. Jika tidak, gunakan waktu saat ini.
+    if reply.date:
+        msg_time = reply.date.strftime("%H.%M")
+    else:
+        msg_time = datetime.now().strftime("%H.%M")
 
-    proses = await animate_proses(
-        message,
-        em.proses
-    )
+    # 2. Mengekstrak foto jika ada (untuk diisi ke imageUrl)
+    image_url = ""
+    if reply.photo:
+        try:
+            # Unduh foto ke memori dan konversi ke base64 URI
+            photo_file = await client.download_media(reply, in_memory=True)
+            image_url = "data:image/jpeg;base64," + base64.b64encode(photo_file.getvalue()).decode()
+        except Exception:
+            pass # Abaikan jika gagal mengunduh foto
 
-    file_path = None
+    # 3. Menyiapkan teks
+    text = reply.text or reply.caption or ""
+    
+    # Menghindari error jika pesan hanya berupa media tanpa caption
+    if not text and not image_url:
+        return await message.edit("Pesan tidak mengandung teks atau gambar yang valid.")
 
+    # 4. Membangun Payload JSON
+    payload = {
+        "sender": "other", # "other" (kiri) atau "me" (kanan)
+        "message": text,
+        "imageUrl": image_url, # Berisi base64 gambar jika ada, atau kosong jika tidak
+        "timestamp": msg_time,
+        "time": msg_time,
+        "status": {
+            "carrierName": "INDOSAT OORE...",
+            "batteryPercentage": 88,
+            "signalStrength": 4,
+            "wifi": True
+        },
+        "backgroundUrl": "",
+        "readStatus": True,
+        "emojiStyle": "apple"
+    }
+
+    # 5. Mengirim Request & Mengirim Gambar
     try:
-        # Ambil user target
-        if message.reply_to_message:
-            user = message.reply_to_message.from_user
-        else:
-            user = message.from_user
+        await message.edit("⏳ Membuat fake chat iPhone...")
 
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                "https://brat.siputzx.my.id/v2/iphone-quoted",
+                json=payload,
+                timeout=60
+            ) as r:
+                if r.status != 200:
+                    error_text = await r.text()
+                    return await message.edit(f"Gagal membuat fake chat:\n{error_text}")
+                
+                content = await r.read()
 
-        sender = "other"
+        # Output fake chat biasanya lebih cocok dikirim sebagai Foto (screenshot) bukan Stiker WEBP
+        img_io = BytesIO(content)
+        img_io.name = "iphone_fakechat.png"
 
-        # fallback avatar
-        image_url = (
-            "https://i.pinimg.com/564x/ac/09/cd/"
-            "ac09cda97d8a29bcf60ac4b99c5b270d.jpg"
-        )
-
-
-        if user:
-            sender = (
-                user.first_name
-                or "User"
-            )
-
-            if user.last_name:
-                sender += f" {user.last_name}"
-
-
-            # ambil foto profil
-            try:
-                async for p in client.get_chat_photos(
-                    user.id,
-                    limit=1
-                ):
-
-                    photo_file = await client.download_media(
-                        p.file_id,
-                        in_memory=True
-                    )
-
-
-                    encoded = base64.b64encode(
-                        photo_file.getvalue()
-                    ).decode()
-
-
-                    image_url = (
-                        "data:image/png;base64,"
-                        + encoded
-                    )
-
-                    break
-
-            except Exception:
-                pass
-
-
-
-        url = (
-            "https://brat.siputzx.my.id/"
-            "v2/iphone-quoted"
-        )
-
-
-        payload = {
-            "sender": sender,
-            "message": prompt,
-
-            "imageUrl": image_url,
-
-            "timestamp": "21.02",
-            "time": "21.02",
-
-            "status": {
-                "carrierName": "INDOSAT OORE...",
-                "batteryPercentage": 88,
-                "signalStrength": 4,
-                "wifi": True
-            },
-
-            "backgroundUrl": "",
-
-            "readStatus": True,
-
-            "emojiStyle": "apple"
-        }
-
-
-
-        response = await Tools.fetch.post(
-            url,
-            json=payload
-        )
-
-
-        if response.status_code != 200:
-            raise Exception(
-                f"API Error: {response.status_code}\n"
-                f"{response.text}"
-            )
-
-
-
-        file_path = (
-            f"iphone_{uuid.uuid4().hex}.png"
-        )
-
-
-        with open(
-            file_path,
-            "wb"
-        ) as f:
-            f.write(
-                response.content
-            )
-
-
-        await client.send_photo(
-            chat_id=message.chat.id,
-            photo=file_path,
-            caption=(
-                f"{em.sukses}"
-                f"**Generated by "
-                f"{client.me.mention}**"
-            )
-        )
-
-
-        await proses.delete()
-
-
+        await message.reply_photo(img_io)
+        await message.delete()
 
     except Exception as e:
-        await proses.edit(
-            f"{em.gagal}**ERROR:**\n`{e}`"
-        )
-
-
-    finally:
-        if file_path and os.path.exists(file_path):
-            os.remove(file_path)
+        await message.edit(f"Error: {e}")
 
 async def bingimg_cmd(client, message):
     emo = Emoji(client)
