@@ -17,239 +17,125 @@ from helpers import Bing, Emoji, Tools, animate_proses
 from logs import logger
 from datetime import datetime
 
-QUOTE_API = "https://brat.siputzx.my.id/quoted"
+async def quoted_cmd(client, message):
+    em = Emoji(client)
+    await em.get()
 
+    command = message.command[0]
+    
+    # Ambil teks dari argumen teks langsung atau dari pesan yang di-reply
+    prompt = client.get_text(message)
+    if not prompt and message.reply_to_message:
+        reply_msg = message.reply_to_message
+        prompt = reply_msg.text or reply_msg.caption
 
-QUOTE_BACKGROUNDS = [
-    "#292232",
-    "#1E1E2E",
-    "#313244",
-    "#45475A",
-    "#181825",
-    "#11111B",
-    "#24273A",
-    "#3B4252",
-    "#2E3440",
-    "#4C566A"
-]
+    if not prompt:
+        return await message.reply(
+            f"{em.gagal}**Please reply to a message or provide text!**\n"
+            f"Example: `{command} Jangan menyerah`"
+        )
 
+    # Tentukan data pengirim berdasarkan reply atau akun sendiri
+    if message.reply_to_message and message.reply_to_message.from_user:
+        sender = message.reply_to_message.from_user
+        user_id = sender.id
+        first_name = sender.first_name or "User"
+        last_name = sender.last_name or ""
+        full_name = f"{first_name} {last_name}".strip()
+    else:
+        user_id = client.me.id
+        first_name = client.me.first_name or "User"
+        last_name = client.me.last_name or ""
+        full_name = client.me.full_name or first_name
 
-async def upload_avatar(client, user_id):
+    proses = await animate_proses(message, em.proses)
+
     try:
-        async for photo in client.get_chat_photos(
-            user_id,
-            limit=1
-        ):
+        url = "https://brat.siputzx.my.id/quoted"
 
-            file = await client.download_media(
-                photo,
-                in_memory=True
+        # Susun payload JSON POST sesuai struktur API quoted
+        payload = {
+            "messages": [
+                {
+                    "from": {
+                        "id": user_id,
+                        "first_name": first_name,
+                        "last_name": last_name,
+                        "name": full_name,
+                        "photo": {"url": "avatar"}
+                    },
+                    "text": prompt,
+                    "entities": [],
+                    "avatar": True,
+                    "media": {"url": ""},
+                    "mediaType": "",
+                    "replyMessage": {
+                        "name": "",
+                        "text": "",
+                        "entities": [],
+                        "chatId": user_id
+                    }
+                }
+            ],
+            "backgroundColor": "#313244",
+            "width": 512,
+            "height": 512,
+            "scale": 2,
+            "type": "quote",
+            "format": "webp",
+            "emojiStyle": "apple"
+        }
+
+        # Gunakan method POST dengan JSON payload
+        response = await Tools.fetch.post(
+            url,
+            json=payload
+        )
+
+        if response.status_code != 200:
+            raise Exception(
+                f"API Error: {response.status_code}"
             )
 
-            file.seek(0)
-
-            async with aiohttp.ClientSession() as session:
-
-                form = aiohttp.FormData()
-
-                form.add_field(
-                    "file",
-                    file,
-                    filename="avatar.jpg",
-                    content_type="image/jpeg"
-                )
-
-                async with session.post(
-                    "https://telegra.ph/upload",
-                    data=form
-                ) as resp:
-
-                    result = await resp.json()
-
-                    return (
-                        "https://telegra.ph"
-                        + result[0]["src"]
-                    )
-
-    except Exception:
-        return ""
-
-async def quote_cmd(client, message):
-
-    if message.reply_to_message:
-
-        msg = message.reply_to_message
-
-        text = (
-            msg.text
-            or msg.caption
-            or ""
+        content_type = response.headers.get(
+            "Content-Type",
+            ""
         )
 
-        user = msg.from_user
+        if "webp" in content_type:
+            ext = "webp"
+        elif "gif" in content_type:
+            ext = "gif"
+        else:
+            ext = "png"
 
-    else:
+        file_path = f"quoted_{uuid.uuid4().hex}.{ext}"
 
-        split = message.text.split(
-            None,
-            1
-        )
+        with open(file_path, "wb") as f:
+            f.write(response.content)
 
-        text = (
-            split[1]
-            if len(split) > 1
-            else ""
-        )
+        # Kirim hasil sebagai dokumen/stiker tergantung formatnya
+        if ext == "webp":
+            await client.send_document(
+                chat_id=message.chat.id,
+                document=file_path,
+                caption=f"{em.sukses}**Generated by {client.me.mention}**"
+            )
+        else:
+            await client.send_photo(
+                chat_id=message.chat.id,
+                photo=file_path,
+                caption=f"{em.sukses}**Generated by {client.me.mention}**"
+            )
 
-        user = message.from_user
-
-
-    if not text:
-        return await message.reply(
-            "Reply pesan atau masukkan teks.\n\n"
-            "Contoh:\n"
-            ".q hello world"
-        )
-
-
-    avatar = await upload_avatar(
-        client,
-        user.id
-    )
-
-
-    payload = {
-
-        "messages": [
-            {
-                "from": {
-
-                    "id": user.id,
-
-                    "first_name":
-                        user.first_name
-                        or "User",
-
-                    "last_name":
-                        user.last_name
-                        or "",
-
-                    "name":
-                        user.first_name
-                        or "User",
-
-                    "photo": {
-                        "url": avatar
-                    }
-                },
-
-                "text": text,
-
-                "entities": [],
-
-                "avatar": True,
-
-                "media": {
-                    "url": ""
-                },
-
-                "mediaType": "",
-
-                "replyMessage": {
-
-                    "name": "",
-
-                    "text": "",
-
-                    "entities": [],
-
-                    "chatId":
-                        message.chat.id
-                }
-            }
-        ],
-
-        "backgroundColor":
-            random.choice(
-                QUOTE_BACKGROUNDS
-            ),
-
-        "width": 512,
-
-        "height": 512,
-
-        "scale": 2,
-
-        "type": "quote",
-
-        "format": "png",
-
-        "emojiStyle": "apple"
-    }
-
-
-    try:
-
-        async with aiohttp.ClientSession() as session:
-
-            async with session.post(
-                QUOTE_API,
-                json=payload
-            ) as resp:
-
-
-                if resp.status != 200:
-                    return await message.reply(
-                        f"API Error {resp.status}"
-                    )
-
-
-                png = await resp.read()
-
-
-
-        # PNG -> Sticker WEBP
-
-        image = Image.open(
-            BytesIO(png)
-        )
-
-        image = image.convert(
-            "RGBA"
-        )
-
-
-        image.thumbnail(
-            (512, 512)
-        )
-
-
-        sticker = BytesIO()
-
-        sticker.name = "quote.webp"
-
-
-        image.save(
-            sticker,
-            "WEBP",
-            quality=95,
-            method=6
-        )
-
-
-        sticker.seek(0)
-
-
-        await message.reply_sticker(
-            sticker
-        )
-
+        os.remove(file_path)
+        await proses.delete()
 
     except Exception as e:
-
-        await message.reply(
-            f"Error: {e}"
+        await proses.edit(
+            f"{em.gagal}**ERROR:**\n`{e}`"
         )
+
 
 async def brat_cmd(client, message):
     em = Emoji(client)
