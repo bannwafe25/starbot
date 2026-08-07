@@ -13,7 +13,7 @@ from .asupan_command import asupan_cmd, cewe_cmd, cowo_cmd, pap_cmd, ppcp_cmd
 from .autobc_command import autobc_cmd
 from .autofw_command import autofw_cmd
 from .autoread_command import autoread_cmd
-from .blackbox_command import blackbox_cmd, claude_cmd
+from .blackbox_command import blackbox_cmd
 from .broadcast_command import (addbcdb_cmd, addbl_cmd, bc_cmd, bcerror_cmd,
                                 cancel_cmd, delbcdb_cmd, delbl_cmd, gcast_cmd,
                                 listbcdb_cmd, listbl_cmd, sendinline_cmd,
