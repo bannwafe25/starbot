@@ -19,18 +19,28 @@ from datetime import datetime
 
 async def get_profile_photo(client, user_id):
     try:
-        async for photo in client.get_chat_photos(user_id, limit=1):
-            path = await client.download_media(photo.file_id)
+        async for photo in client.get_chat_photos(
+            chat_id=user_id,
+            limit=1
+        ):
+            file_path = await client.download_media(
+                photo.file_id
+            )
 
-            url = await Tools.upload_thumb(path)
+            if not file_path:
+                break
 
-            if os.path.exists(path):
-                os.remove(path)
+            photo_url = await Tools.upload_thumb(
+                file_path
+            )
 
-            return url
+            if os.path.exists(file_path):
+                os.remove(file_path)
 
-    except Exception:
-        pass
+            return photo_url
+
+    except Exception as e:
+        logger.error(f"GET PROFILE PHOTO ERROR: {e}")
 
     return "https://dummyimage.com/100x100"
 
@@ -44,43 +54,50 @@ async def quote_cmd(client, message):
     prompt = client.get_text(message)
 
     if not prompt and message.reply_to_message:
-        reply_msg = message.reply_to_message
-        prompt = reply_msg.text or reply_msg.caption
+        prompt = (
+            message.reply_to_message.text
+            or message.reply_to_message.caption
+        )
 
     if not prompt:
         return await message.reply(
-            f"{em.gagal}**Silakan balas sebuah pesan atau masukkan teks!**\n"
-            f"Contoh: `{command} Jangan menyerah`"
+            f"{em.gagal}**Silakan balas pesan atau masukkan teks!**\n"
+            f"Contoh: `{command} Halo dunia`"
         )
 
-    if message.reply_to_message and message.reply_to_message.from_user:
-        sender = message.reply_to_message.from_user
 
-        user_id = sender.id
-        first_name = sender.first_name or "User"
-        last_name = sender.last_name or ""
+    # user target
+    if (
+        message.reply_to_message
+        and message.reply_to_message.from_user
+    ):
+        user = message.reply_to_message.from_user
 
-        full_name = f"{first_name} {last_name}".strip()
+        user_id = user.id
+        first_name = user.first_name or "User"
+        last_name = user.last_name or ""
 
     else:
         user_id = client.me.id
         first_name = client.me.first_name or "User"
         last_name = client.me.last_name or ""
 
-        full_name = client.me.full_name or first_name
+
+    full_name = f"{first_name} {last_name}".strip()
 
 
-    proses = await animate_proses(message, em.proses)
+    proses = await animate_proses(
+        message,
+        em.proses
+    )
+
 
     try:
-        # ambil foto profil asli
+        # ambil PP telegram
         photo_url = await get_profile_photo(
             client,
             user_id
         )
-
-
-        url = "https://brat.siputzx.my.id/quoted"
 
 
         payload = {
@@ -91,8 +108,6 @@ async def quote_cmd(client, message):
                         "first_name": first_name,
                         "last_name": last_name,
                         "name": full_name,
-
-                        # PP asli
                         "photo": {
                             "url": photo_url
                         }
@@ -123,60 +138,45 @@ async def quote_cmd(client, message):
             "height": 512,
             "scale": 2,
             "type": "quote",
-            "format": "webp",
+            "format": "png",
             "emojiStyle": "apple"
         }
 
 
         response = await Tools.fetch.post(
-            url,
+            "https://brat.siputzx.my.id/quoted",
             json=payload
         )
 
 
         if response.status_code != 200:
             raise Exception(
-                f"Kesalahan API: {response.status_code}"
+                f"API ERROR {response.status_code}"
             )
 
 
-        content_type = response.headers.get(
-            "Content-Type",
-            ""
+        file_path = (
+            f"quote_{uuid.uuid4().hex}.png"
         )
-
-
-        if "webp" in content_type:
-            ext = "webp"
-        elif "gif" in content_type:
-            ext = "gif"
-        else:
-            ext = "png"
-
-
-        file_path = f"quoted_{uuid.uuid4().hex}.{ext}"
 
 
         with open(file_path, "wb") as f:
             f.write(response.content)
 
 
-        if ext == "webp":
-            await client.send_document(
-                chat_id=message.chat.id,
-                document=file_path,
-                caption=f"{em.sukses}**Dibuat oleh {client.me.mention}**"
+        await client.send_photo(
+            chat_id=message.chat.id,
+            photo=file_path,
+            caption=(
+                f"{em.sukses}"
+                f"**Dibuat oleh {client.me.mention}**"
             )
-
-        else:
-            await client.send_photo(
-                chat_id=message.chat.id,
-                photo=file_path,
-                caption=f"{em.sukses}**Dibuat oleh {client.me.mention}**"
-            )
+        )
 
 
-        os.remove(file_path)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
 
         await proses.delete()
 
@@ -184,7 +184,7 @@ async def quote_cmd(client, message):
     except Exception as e:
 
         await proses.edit(
-            f"{em.gagal}**TERJADI KESALAHAN:**\n`{e}`"
+            f"{em.gagal}**ERROR:**\n`{e}`"
         )
 
 
