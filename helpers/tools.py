@@ -688,26 +688,21 @@ class Tools:
         }
 
     @staticmethod
-async def upload_thumb(media):
-    media_name = f"{uuid4()}.jpg"
+    async def upload_thumb(media):
+        try:
+            if not media:
+                return None
 
-    with open(media, "rb") as f:
-        files = {
-            "file": (
-                media_name,
-                f,
-                "image/jpeg"
-            )
-        }
+            if not os.path.exists(media):
+                return None
 
-        response = await Tools.fetch.post(
-            Tools.ENV_URL,
-            files=files
-        )
+            url = await Tools.upload_file(media)
 
-    response.raise_for_status()
+            return url
 
-    return response.text.strip()
+        except Exception as e:
+            logger.error(f"upload_thumb error: {e}")
+            return None
 
     @staticmethod
     async def interact_with(message):
