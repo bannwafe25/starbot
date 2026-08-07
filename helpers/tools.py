@@ -688,54 +688,48 @@ class Tools:
         }
     @staticmethod
     async def upload_catbox(file_path):
-    try:
-        if not os.path.exists(file_path):
+        try:
+            if not os.path.exists(file_path):
+                return ""
+
+            with open(file_path, "rb") as f:
+                file_data = f.read()
+
+            form = aiohttp.FormData()
+
+            form.add_field(
+                "reqtype",
+                "fileupload"
+            )
+
+            form.add_field(
+                "fileToUpload",
+                file_data,
+                filename=os.path.basename(file_path),
+                content_type="image/jpeg"
+            )
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    "https://catbox.moe/user/api.php",
+                    data=form,
+                    headers={
+                        "User-Agent": "Mozilla/5.0"
+                    }
+                ) as resp:
+                    result = await resp.text()
+
+            result = result.strip()
+
+            if result.startswith("https://"):
+                return result
+
+            logger.error(f"Catbox failed: {result}")
             return ""
 
-        with open(file_path, "rb") as f:
-            file_data = f.read()
-
-        form = aiohttp.FormData()
-
-        form.add_field(
-            "reqtype",
-            "fileupload"
-        )
-
-        form.add_field(
-            "fileToUpload",
-            file_data,
-            filename=os.path.basename(file_path),
-            content_type="image/jpeg"
-        )
-
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                "https://catbox.moe/user/api.php",
-                data=form,
-                headers={
-                    "User-Agent": "Mozilla/5.0"
-                }
-            ) as resp:
-
-                result = await resp.text()
-
-        result = result.strip()
-
-        if result.startswith("https://"):
-            return result
-
-        logger.error(
-            f"Catbox failed: {result}"
-        )
-
-        return ""
-
-    except Exception as e:
-        logger.error(
-            f"Catbox upload error: {e}"
-        )
-        return ""
+        except Exception as e:
+            logger.error(f"Catbox upload error: {e}")
+            return ""
         
     @staticmethod
     async def upload_thumb(media):
