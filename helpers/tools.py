@@ -688,12 +688,26 @@ class Tools:
         }
 
     @staticmethod
-    async def upload_thumb(media):
-        media_name = str(uuid4())
-        files = {"file": (media_name, open(media, "rb"))}
-        response = await Tools.fetch.post(Tools.ENV_URL, files=files)
-        response.raise_for_status()
-        return response.text.strip()
+async def upload_thumb(media):
+    media_name = f"{uuid4()}.jpg"
+
+    with open(media, "rb") as f:
+        files = {
+            "file": (
+                media_name,
+                f,
+                "image/jpeg"
+            )
+        }
+
+        response = await Tools.fetch.post(
+            Tools.ENV_URL,
+            files=files
+        )
+
+    response.raise_for_status()
+
+    return response.text.strip()
 
     @staticmethod
     async def interact_with(message):
