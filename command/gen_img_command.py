@@ -38,12 +38,14 @@ async def quote_cmd(client: Client, message: Message):
 
     # 2. Ambil Data Pengguna Target
     user = reply.from_user or reply.sender_chat
-    name = user.first_name if hasattr(user, 'first_name') else (user.title or "User")
-    if hasattr(user, 'last_name') and user.last_name:
-        name += f" {user.last_name}"
-
+    
+    # Ambil properti Telegram dengan aman
+    first_name = user.first_name if hasattr(user, 'first_name') and user.first_name else (user.title or "User")
+    last_name = user.last_name if hasattr(user, 'last_name') and user.last_name else ""
+    username = user.username if hasattr(user, 'username') and user.username else ""
+    
     # 3. Ambil Foto Profil (Ubah ke Base64 Data URI)
-    avatar_url = f"https://ui-avatars.com/api/?name={name.replace(' ', '+')}&background=random"
+    avatar_url = f"https://ui-avatars.com/api/?name={first_name.replace(' ', '+')}&background=random"
     if user and user.photo:
         try:
             photo_bytes = await client.download_media(user.photo.big_file_id, in_memory=True)
@@ -52,69 +54,52 @@ async def quote_cmd(client: Client, message: Message):
             print(f"Gagal mengunduh foto profil: {e}")
 
     text = reply.text or reply.caption or ""
-    if not text:
-        await message.edit_text("❌ Pesan tidak memiliki teks.")
-        return
 
-    # 4. Susun Struktur Pesan Utama
+    # 4. Susun Struktur Pesan Utama mengikuti standar LyoSU
     message_data = {
         "from": {
             "id": user.id if user else 1,
-            "name": name,
-            "photo": { "url": avatar_url }
+            "first_name": first_name,
+            "last_name": last_name,
+            "username": username,
+            "photo": { "url": avatar_url } # Tetap gunakan URL base64/UI-avatar
         },
         "text": text,
         "avatar": True,
-        "entities": []  # <-- Seringkali wajib ada meskipun kosong
+        "entities": [] 
     }
 
-    # Handle Reply Message HANYA jika pesan tersebut memang mereply pesan lain
-    # Jika tidak ada, jangan masukkan key "replyMessage" sama sekali
+    # 5. Handle Reply Message jika ada
     if reply.reply_to_message:
         replied_to = reply.reply_to_message
         r_user = replied_to.from_user or replied_to.sender_chat
-        r_name = r_user.first_name if hasattr(r_user, 'first_name') else (r_user.title or "User")
+        
+        r_first_name = r_user.first_name if hasattr(r_user, 'first_name') and r_user.first_name else (r_user.title or "User")
+        r_last_name = r_user.last_name if hasattr(r_user, 'last_name') and r_user.last_name else ""
         
         message_data["replyMessage"] = {
-            "name": r_name,
+            "name": f"{r_first_name} {r_last_name}".strip(),
             "text": replied_to.text or replied_to.caption or "🖼 Media",
             "chatId": r_user.id if r_user else 0,
-            "entities": []
+            "entities": [],
+            # Struktur FROM tambahan di dalam replyMessage
+            "from": {
+                "id": r_user.id if r_user else 0,
+                "first_name": r_first_name,
+                "last_name": r_last_name,
+                "username": r_user.username if hasattr(r_user, 'username') and r_user.username else ""
+            }
         }
 
-    # 5. Susun Payload Akhir
+    # 6. Susun Payload Akhir
     payload = {
-        "type": "quote", # <-- Ditambahkan agar lebih aman
-        "backgroundColor": bg_color, 
+        "backgroundColor": bg_color,
         "width": 512,
         "height": 768,
         "scale": 2,
+        "emojiBrand": "apple", # Tambahkan sesuai contoh LyoSU
         "messages": [message_data]
     }
-
-    # 6. Eksekusi menggunakan Direct Binary Endpoint
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as http_client:
-            response = await http_client.post("https://quote.yuri.ly/quote/generate.png", json=payload)
-            
-            # Tangkap pesan error spesifik dari API jika bukan 200 OK
-            if response.status_code != 200:
-                error_msg = response.text[:200] # Ambil 200 karakter pertama dari pesan error
-                await message.edit_text(f"❌ Error API ({response.status_code}):\n`{error_msg}`\n\n**Payload:**\n`{payload}`")
-                return
-            
-            # Langsung jadikan BytesIO tanpa perlu b64decode
-            sticker_data = BytesIO(response.content)
-            sticker_data.name = "quotly.webp" 
-
-            await message.reply_sticker(sticker=sticker_data)
-            await message.delete()
-
-    except Exception as e:
-        await message.edit_text(f"❌ Terjadi kesalahan request: `{e}`")
-
-
-
 
 async def brat_cmd(client, message):
     em = Emoji(client)
