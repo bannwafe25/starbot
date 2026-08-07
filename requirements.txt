@@ -68,7 +68,7 @@ yt-dlp
 youtube-search
 youtube-search-python
 gpytranslate
-grooq
+###grooq
 git+https://github.com/zpkemem-code/callgram.git@master
 git+https://github.com/googleapis/python-genai.git@main
 git+https://github.com/FerlyKurniawan/pyrofork
