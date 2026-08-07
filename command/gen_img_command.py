@@ -1,4 +1,5 @@
 import os
+import httpx
 import base64
 import shutil
 import traceback
@@ -18,128 +19,92 @@ from helpers import Bing, Emoji, Tools, animate_proses
 from logs import logger
 from datetime import datetime
 
-async def upload_to_telegraph(file_bytes: io.BytesIO) -> str:
-    url = "https://telegra.ph/upload"
-    form = aiohttp.FormData()
-    form.add_field(
-        'file', 
-        file_bytes.getvalue(), 
-        filename='pfp.jpg', 
-        content_type='image/jpeg'
-    )
-    
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, data=form) as response:
-                if response.status == 200:
-                    res = await response.json()
-                    # Menggabungkan host dengan path yang dikembalikan
-                    return f"https://telegra.ph{res[0]['src']}"
-    except Exception:
-        pass
-    
-    return "" # Kembalikan string kosong jika gagal agar quotly tetap jadi (tanpa avatar)
-
 async def quote_cmd(client: Client, message: Message):
-    if not message.reply_to_message:
-        await message.edit_text("❌ Silakan balas pesan yang ingin dijadikan stiker quotly.")
-        return
-
-    await message.edit_text("⏳ *Mengambil foto profil & memproses quotly...*")
     reply = message.reply_to_message
-    
-    text = reply.text or reply.caption
-    if not text:
-        await message.edit_text("❌ Pesan yang dibalas tidak memiliki teks.")
+    if not reply:
+        await message.edit_text("❌ Silakan *reply* ke pesan yang ingin dijadikan Quotly.")
         return
 
-    sender = reply.from_user
-    sender_chat = reply.sender_chat
+    # 1. Parsing Warna Background
+    # Default menggunakan warna gelap khas Telegram
+    bg_color = "#1b1429" 
     
-    sender_name = "Unknown"
-    sender_id = 1
-    pfp_url = ""
+    # Jika ada teks setelah .q (contoh: .q red, atau .q #ff0000)
+    if len(message.command) > 1:
+        # Ambil argumen pertama setelah command
+        bg_color = message.command[1]
 
-    # 1. Logika jika pesan dikirim oleh User/Pengguna
-    if sender:
-        sender_id = sender.id
-        first_name = sender.first_name or ""
-        last_name = sender.last_name or ""
-        sender_name = f"{first_name} {last_name}".strip()
+    await message.edit_text(f"⏳ Sedang membuat Quotly (Warna: `{bg_color}`)...")
+
+    # 2. Ambil Data Pengguna Target
+    user = reply.from_user or reply.sender_chat
+    name = user.first_name if hasattr(user, 'first_name') else (user.title or "User")
+    if hasattr(user, 'last_name') and user.last_name:
+        name += f" {user.last_name}"
+
+    # 3. Ambil Foto Profil (Ubah ke Base64 Data URI)
+    avatar_url = f"https://ui-avatars.com/api/?name={name.replace(' ', '+')}&background=random"
+    if user and user.photo:
+        try:
+            photo_bytes = await client.download_media(user.photo.big_file_id, in_memory=True)
+            avatar_url = f"data:image/jpeg;base64,{base64.b64encode(photo_bytes.getvalue()).decode('utf-8')}"
+        except Exception as e:
+            print(f"Gagal mengunduh foto profil: {e}")
+
+    text = reply.text or reply.caption or ""
+    if not text:
+        await message.edit_text("❌ Pesan tidak memiliki teks.")
+        return
+
+    # 4. Handle Reply Message (Jika pesan yang di-quote membalas pesan lain)
+    reply_message_data = {}
+    if reply.reply_to_message:
+        replied_to = reply.reply_to_message
+        r_user = replied_to.from_user or replied_to.sender_chat
+        r_name = r_user.first_name if hasattr(r_user, 'first_name') else (r_user.title or "User")
         
-        # Unduh & Upload foto profil pengguna
-        if sender.photo:
-            try:
-                # Unduh ke memory RAM (bukan ke disk)
-                pfp_bytes = await client.download_media(sender.photo.big_file_id, in_memory=True)
-                if pfp_bytes:
-                    pfp_url = await upload_to_telegraph(pfp_bytes)
-            except Exception:
-                pass # Abaikan jika gagal mengambil PFP
+        reply_message_data = {
+            "name": r_name,
+            "text": replied_to.text or replied_to.caption or "🖼 Media",
+            "chatId": r_user.id if r_user else 0
+        }
 
-    # 2. Logika jika pesan dikirim oleh Channel (Kanal) atau Anonymous Admin
-    elif sender_chat:
-        sender_id = sender_chat.id
-        sender_name = sender_chat.title or "Unknown"
-        
-        # Unduh & Upload foto profil channel
-        if sender_chat.photo:
-            try:
-                pfp_bytes = await client.download_media(sender_chat.photo.big_file_id, in_memory=True)
-                if pfp_bytes:
-                    pfp_url = await upload_to_telegraph(pfp_bytes)
-            except Exception:
-                pass
-
-    # 3. Payload untuk API Quotly
+    # 5. Susun Payload
     payload = {
-        "type": "quote",
-        "format": "webp",
-        "backgroundColor": "#292232",
+        "backgroundColor": bg_color, # Menggunakan variabel warna dinamis
         "width": 512,
-        "height": 512,
+        "height": 768,
         "scale": 2,
         "messages": [
             {
-                "entities": [],
-                "avatar": True,
                 "from": {
-                    "id": sender_id,
-                    "name": sender_name,
-                    "photo": {
-                        "url": pfp_url # Sekarang URL berisi link dari Telegraph
-                    }
+                    "id": user.id if user else 1,
+                    "name": name,
+                    "photo": { "url": avatar_url }
                 },
                 "text": text,
-                "replyMessage": {}
+                "avatar": True,
+                "replyMessage": reply_message_data
             }
         ]
     }
 
-    # 4. Request ke API
-    api_url = "https://brat.siputzx.my.id/quoted"
+    # 6. Eksekusi menggunakan Direct Binary Endpoint
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(api_url, json=payload) as response:
-                if response.status != 200:
-                    await message.edit_text(f"❌ Gagal mengambil data dari API (Status: {response.status})")
-                    return
-                
-                image_bytes = await response.read()
-                
-                sticker = io.BytesIO(image_bytes)
-                sticker.name = "quotly.webp"
-                
-                # 5. Kirim stiker
-                await client.send_sticker(
-                    chat_id=message.chat.id,
-                    sticker=sticker,
-                    reply_to_message_id=reply.id
-                )
-                await message.delete() # Hapus pesan loading
-                
+        async with httpx.AsyncClient(timeout=15.0) as http_client:
+            response = await http_client.post("https://quote.yuri.ly/quote/generate.png", json=payload)
+            response.raise_for_status()
+            
+            # Langsung jadikan BytesIO tanpa perlu b64decode
+            sticker_data = BytesIO(response.content)
+            sticker_data.name = "quotly.webp" 
+
+            await message.reply_sticker(sticker=sticker_data)
+            await message.delete()
+
     except Exception as e:
-        await message.edit_text(f"❌ Terjadi kesalahan:\n`{str(e)}`")
+        await message.edit_text(f"❌ Terjadi kesalahan request: `{e}`")
+
 
 
 async def brat_cmd(client, message):
