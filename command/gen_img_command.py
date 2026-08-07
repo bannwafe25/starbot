@@ -44,7 +44,7 @@ async def quote_cmd(client, message):
                 file_name=f"avatar_{user.id}.jpg"
             )
 
-            avatar_url = await Tools.upload_thumb(path)
+            avatar_url = await Tools.upload_catbox(path)
 
             if os.path.exists(path):
                 os.remove(path)
