@@ -3,7 +3,7 @@ __HELP__ = """<blockquote>Command Help **Blackbox**</blockquote>
 <blockquote expandable>--**Basic Commands**--
 
     **You can answer question to blackbox ai** 
-        `{0}ask` (question)</blockquote>
+        `{0}ai` (question)</blockquote>
 <b>   {1}</b>
 """
 
