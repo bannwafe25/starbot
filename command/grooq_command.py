@@ -1,5 +1,5 @@
 from groq import Groq
-from pyrogram import filters
+from pyrogram.enums import ParseMode
 
 from config import GROQ_API_KEY
 
@@ -33,5 +33,5 @@ async def grooq_cmd(client, message):
 
     await message.edit(
         f"<blockquote>{result}</blockquote>",
-        parse_mode="html"
+        parse_mode=ParseMode.HTML
     )
