@@ -101,27 +101,24 @@ async def quote_cmd(client: Client, message: Message):
         "messages": [message_object]
     }
 
-    # 6. Eksekusi Request ke Endpoint Target Anda
+    # 6. Eksekusi Request ke Endpoint Target (Menggunakan /generate.webp)
     try:
         headers = {
             "Content-Type": "application/json",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
         }
         
-                async with httpx.AsyncClient(timeout=25.0) as http_client:
-            # Perbaiki path endpoint tanpa '/quote/' di tengahnya
+        async with httpx.AsyncClient(timeout=25.0) as http_client:
             response = await http_client.post(
                 "https://quote.yuri.ly/generate.webp", 
                 json=payload, 
                 headers=headers
             )
-
             
             if response.status_code != 200:
                 await progress.edit_text(f"❌ API Error ({response.status_code}):\n`{response.text[:100]}`")
                 return
 
-            # Karena menggunakan endpoint .webp, data biner langsung diproses ke BytesIO
             sticker_data = BytesIO(response.content)
             sticker_data.name = "quotly.webp" 
 
