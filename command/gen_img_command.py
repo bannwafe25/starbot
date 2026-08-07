@@ -56,44 +56,52 @@ async def quote_cmd(client: Client, message: Message):
         await message.edit_text("❌ Pesan tidak memiliki teks.")
         return
 
-    # 4. Handle Reply Message (Jika pesan yang di-quote membalas pesan lain)
-    reply_message_data = {}
+    # 4. Susun Struktur Pesan Utama
+    message_data = {
+        "from": {
+            "id": user.id if user else 1,
+            "name": name,
+            "photo": { "url": avatar_url }
+        },
+        "text": text,
+        "avatar": True,
+        "entities": []  # <-- Seringkali wajib ada meskipun kosong
+    }
+
+    # Handle Reply Message HANYA jika pesan tersebut memang mereply pesan lain
+    # Jika tidak ada, jangan masukkan key "replyMessage" sama sekali
     if reply.reply_to_message:
         replied_to = reply.reply_to_message
         r_user = replied_to.from_user or replied_to.sender_chat
         r_name = r_user.first_name if hasattr(r_user, 'first_name') else (r_user.title or "User")
         
-        reply_message_data = {
+        message_data["replyMessage"] = {
             "name": r_name,
             "text": replied_to.text or replied_to.caption or "🖼 Media",
-            "chatId": r_user.id if r_user else 0
+            "chatId": r_user.id if r_user else 0,
+            "entities": []
         }
 
-    # 5. Susun Payload
+    # 5. Susun Payload Akhir
     payload = {
-        "backgroundColor": bg_color, # Menggunakan variabel warna dinamis
+        "type": "quote", # <-- Ditambahkan agar lebih aman
+        "backgroundColor": bg_color, 
         "width": 512,
         "height": 768,
         "scale": 2,
-        "messages": [
-            {
-                "from": {
-                    "id": user.id if user else 1,
-                    "name": name,
-                    "photo": { "url": avatar_url }
-                },
-                "text": text,
-                "avatar": True,
-                "replyMessage": reply_message_data
-            }
-        ]
+        "messages": [message_data]
     }
 
     # 6. Eksekusi menggunakan Direct Binary Endpoint
     try:
         async with httpx.AsyncClient(timeout=15.0) as http_client:
             response = await http_client.post("https://quote.yuri.ly/quote/generate.png", json=payload)
-            response.raise_for_status()
+            
+            # Tangkap pesan error spesifik dari API jika bukan 200 OK
+            if response.status_code != 200:
+                error_msg = response.text[:200] # Ambil 200 karakter pertama dari pesan error
+                await message.edit_text(f"❌ Error API ({response.status_code}):\n`{error_msg}`\n\n**Payload:**\n`{payload}`")
+                return
             
             # Langsung jadikan BytesIO tanpa perlu b64decode
             sticker_data = BytesIO(response.content)
@@ -104,6 +112,7 @@ async def quote_cmd(client: Client, message: Message):
 
     except Exception as e:
         await message.edit_text(f"❌ Terjadi kesalahan request: `{e}`")
+
 
 
 
