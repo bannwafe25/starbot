@@ -17,86 +17,68 @@ from helpers import Bing, Emoji, Tools, animate_proses
 from logs import logger
 from datetime import datetime
 
-QUOTE_API = "https://brat.siputzx.my.id/quoted"
-
-
-async def get_user_photo_url(client, user):
-    try:
-        chat = await client.get_chat(user.id)
-
-        if not chat.photo:
-            return ""
-
-        file = await client.download_media(
-            chat.photo.big_file_id,
-            file_name=f"pp_{user.id}.jpg"
-        )
-
-        url = await Tools.upload_thumb(file)
-
-        return url
-
-    except Exception:
-        return ""
-
 async def quote_cmd(client, message):
     if not message.reply_to_message:
         return await message.reply(
-            "❌ Reply pesan yang ingin dijadikan quote."
+            "❌ Balas pesan terlebih dahulu.\nContoh: `.q`"
         )
-
-    proses = await message.reply(
-        "⏳ Processing quote..."
-    )
 
     reply = message.reply_to_message
-    text = reply.text or reply.caption
-
-    if not text:
-        return await proses.edit(
-            "❌ Pesan tidak memiliki teks."
-        )
-
     user = reply.from_user
 
-    if user:
-        name = user.first_name or "Unknown"
-
-        if user.last_name:
-            name += f" {user.last_name}"
-
-        user_id = user.id
-
-    else:
-        name = "Anonymous"
-        user_id = 0
-
-
-    # Ambil PP user
-    photo_url = ""
-
-    if user:
-        photo_url = await get_user_photo_url(
-            client,
-            user
+    if not user:
+        return await message.reply(
+            "❌ Pesan tidak memiliki informasi user."
         )
+
+    avatar_url = ""
+
+    # Ambil foto profil user
+    try:
+        async for photo in client.get_chat_photos(
+            user.id,
+            limit=1
+        ):
+            path = await client.download_media(
+                photo,
+                file_name=f"avatar_{user.id}.jpg"
+            )
+
+            avatar_url = await Tools.upload_thumb(path)
+
+            if os.path.exists(path):
+                os.remove(path)
+
+            break
+
+    except Exception as e:
+        logger.error(
+            f"Quote avatar error: {e}"
+        )
+
+
+    text = (
+        reply.text
+        or reply.caption
+        or "Media"
+    )
 
 
     payload = {
         "messages": [
             {
                 "from": {
-                    "id": user_id,
-                    "first_name": name,
-                    "last_name": "",
-                    "name": name,
+                    "id": user.id,
+                    "first_name": user.first_name or "User",
+                    "last_name": user.last_name or "",
+                    "name": "",
                     "photo": {
-                        "url": photo_url
+                        "url": avatar_url
                     }
                 },
                 "text": text,
-                "entities": [],
-                "avatar": True,
+                "entities": Tools.get_msg_entities(reply),
+                "avatar": bool(avatar_url),
                 "media": {
                     "url": ""
                 },
@@ -114,63 +96,58 @@ async def quote_cmd(client, message):
         "height": 512,
         "scale": 2,
         "type": "quote",
-        "format": "webp",
+        "format": "png",
         "emojiStyle": "apple"
     }
 
 
     try:
-        result = requests.post(
-            QUOTE_API,
-            json=payload,
-            timeout=60
-        )
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                "https://brat.siputzx.my.id/quoted",
+                json=payload
+            ) as resp:
+
+                if resp.status != 200:
+                    return await message.reply(
+                        "❌ Gagal membuat quote."
+                    )
+
+                image = await resp.read()
 
 
-        if result.status_code != 200:
-            return await proses.edit(
-                f"❌ API Error {result.status_code}"
-            )
+        # PNG -> WEBP Sticker
+        img = Image.open(
+            io.BytesIO(image)
+        ).convert("RGBA")
 
-
-        # Convert hasil quote ke sticker Telegram
-        sticker = BytesIO()
-        sticker.name = "quote.webp"
-
-
-        image = Image.open(
-            BytesIO(result.content)
-        )
-
-
-        # Telegram sticker max 512x512
-        image.thumbnail(
+        img.thumbnail(
             (512, 512)
         )
 
+        sticker = io.BytesIO()
+        sticker.name = "quote.webp"
 
-        image.save(
+        img.save(
             sticker,
             "WEBP",
-            lossless=True,
-            quality=100
+            quality=95,
+            method=6
         )
 
-
         sticker.seek(0)
-
 
         await message.reply_sticker(
             sticker
         )
 
+    except Exception as e:
+        logger.error(
+            f"Quote error: {e}"
+        )
 
-        await proses.delete()
-
-
-    except Exception:
-        await proses.edit(
-            f"❌ Error:\n`{traceback.format_exc()}`"
+        await message.reply(
+            f"❌ Error: {e}"
         )
 
 
