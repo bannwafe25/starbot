@@ -84,9 +84,7 @@ async def quote_cmd(client: Client, message: Message):
             }
         }
 
-    payload = {
-        "type": "quote",
-        "format": "png",
+        payload = {
         "backgroundColor": bg_color,
         "width": 512,
         "height": 768,
@@ -95,22 +93,24 @@ async def quote_cmd(client: Client, message: Message):
         "messages": [message_data]
     }
 
+
     # 5. Eksekusi Request ke API
     await progress.edit_text("⏳ [3/4] Menghubungi API Quotly...")
     try:
-        # Menambahkan User-Agent agar tidak dicurigai sebagai bot oleh Cloudflare/Server
         headers = {
             "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
         }
         
         async with httpx.AsyncClient(timeout=20.0) as http_client:
+            # PERUBAHAN DISINI: Hapus '/quote' di tengah URL
             response = await http_client.post(
-                "https://quote.yuri.ly/quote/generate", 
+                "https://quote.yuri.ly/quote/generate.webp", 
                 json=payload, 
                 headers=headers
             )
             
+            # (Sisa kodenya sama seperti sebelumnya...)
             if response.status_code != 200:
                 await progress.edit_text(f"❌ API Error ({response.status_code}):\n`{response.text[:100]}`")
                 return
