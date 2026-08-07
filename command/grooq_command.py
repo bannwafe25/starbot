@@ -1,11 +1,11 @@
 from groq import Groq
 from pyrogram import filters
 
-###from clients import Client
 from config import GROQ_API_KEY
 
 
 groq = Groq(api_key=GROQ_API_KEY)
+
 
 async def grooq_cmd(client, message):
 
@@ -29,6 +29,9 @@ async def grooq_cmd(client, message):
         ]
     )
 
+    result = chat.choices[0].message.content
+
     await message.edit(
-        chat.choices[0].message.content
+        f"<blockquote>{result}</blockquote>",
+        parse_mode="html"
     )
