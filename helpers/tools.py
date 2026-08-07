@@ -688,35 +688,54 @@ class Tools:
         }
     @staticmethod
     async def upload_catbox(file_path):
-        try:
-            with open(file_path, "rb") as f:
-                files = {
-                    "fileToUpload": (
-                        os.path.basename(file_path),
-                        f,
-                        "application/octet-stream",
-                    )
+    try:
+        if not os.path.exists(file_path):
+            return ""
+
+        with open(file_path, "rb") as f:
+            file_data = f.read()
+
+        form = aiohttp.FormData()
+
+        form.add_field(
+            "reqtype",
+            "fileupload"
+        )
+
+        form.add_field(
+            "fileToUpload",
+            file_data,
+            filename=os.path.basename(file_path),
+            content_type="image/jpeg"
+        )
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                "https://catbox.moe/user/api.php",
+                data=form,
+                headers={
+                    "User-Agent": "Mozilla/5.0"
                 }
+            ) as resp:
 
-                response = await Tools.fetch.post(
-                    "https://catbox.moe/user/api.php",
-                    data={
-                        "reqtype": "fileupload"
-                    },
-                    files=files,
-                )
+                result = await resp.text()
 
-            result = response.text.strip()
+        result = result.strip()
 
-            if result.startswith("https://"):
-                return result
+        if result.startswith("https://"):
+            return result
 
-            logger.error(f"Catbox failed: {result}")
-            return ""
+        logger.error(
+            f"Catbox failed: {result}"
+        )
 
-        except Exception as e:
-            logger.error(f"Catbox upload error: {e}")
-            return ""
+        return ""
+
+    except Exception as e:
+        logger.error(
+            f"Catbox upload error: {e}"
+        )
+        return ""
         
     @staticmethod
     async def upload_thumb(media):
