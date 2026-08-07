@@ -64,10 +64,11 @@ pyrotgfork==2.2.23
 speedtest-cli
 python-telegram-bot
 telethon
-yt-dlp[default]>=2025.12.8
+yt-dlp
 youtube-search
 youtube-search-python
 gpytranslate
+grooq
 git+https://github.com/zpkemem-code/callgram.git@master
 git+https://github.com/googleapis/python-genai.git@main
 git+https://github.com/FerlyKurniawan/pyrofork
