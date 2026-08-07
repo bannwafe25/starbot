@@ -17,10 +17,10 @@ async def blackbox_request(messages):
     }
 
     payload = {
-        "model": "blackboxai/openai/gpt-5.5",
+        "model": "blackboxai/x-ai/grok-4.1-fast-non-reasoning",
         "messages": messages,
-        "temperature": 0.7,
-        "max_tokens": 4096,
+        "temperature": 0.6,
+        "max_tokens": 1000,
         "stream": False
     }
 
@@ -64,9 +64,11 @@ async def blackbox_cmd(client, message):
             [
                 {
                     "role": "system",
-                    "content":
-                    "Kamu adalah AI assistant coding. "
-                    "Jawab menggunakan bahasa Indonesia jika user memakai bahasa Indonesia."
+                    "content": (
+                        "Kamu adalah AI assistant Telegram. "
+                        "Bantu coding, debugging, dan pertanyaan umum. "
+                        "Gunakan bahasa Indonesia jika user memakai bahasa Indonesia."
+                    )
                 },
                 {
                     "role": "user",
