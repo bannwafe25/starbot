@@ -80,12 +80,10 @@ class StreamingTools:
     async def run_stream(self, link, media_type):
     url = self.sanitize_url(link)
 
-    cookie = cookies()
-
     ydl_params = (
-        f"--cookies {cookie} "
-        "-f bestaudio "
-        "--extractor-args youtube:player_client=android"
+        f"--cookies {cookies()} "
+        "-f best "
+        "--extractor-args 'youtubetab:skip=authcheck'"
     )
 
     stream_kwargs = {
