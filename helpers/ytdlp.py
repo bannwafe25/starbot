@@ -38,12 +38,23 @@ downloader = {}
 
 
 def cookies():
-    folder_path = f"{os.getcwd()}/storage/cookies/youtube"
-    txt_files = glob.glob(os.path.join(folder_path, "*.txt"))
+    folder_path = os.path.join(
+        os.getcwd(),
+        "storage",
+        "cookies",
+        "youtube"
+    )
+
+    txt_files = glob.glob(
+        os.path.join(folder_path, "*.txt")
+    )
+
     if not txt_files:
-        raise FileNotFoundError("No .txt files found in the specified folder.")
-    cookie_txt_file = random.choice(txt_files)
-    return f"""storage/cookies/youtube/{str(cookie_txt_file).split("/")[-1]}"""
+        raise FileNotFoundError(
+            "No YouTube cookies found"
+        )
+
+    return random.choice(txt_files)
 
 
 class StreamingTools:
@@ -67,21 +78,28 @@ class StreamingTools:
         return urllib.parse.urlunparse(parsed)
 
     async def run_stream(self, link, media_type):
-        url = self.sanitize_url(link)
-        ydl_params = f"--cookies {cookies()} -f {url} --extractor-args 'youtubetab:skip=authcheck'"
+    url = self.sanitize_url(link)
 
-        stream_kwargs = {
-            "media_path": url,
-            "audio_parameters": AudioQuality.MEDIUM,
-            "ytdlp_parameters": ydl_params,
-        }
+    cookie = cookies()
 
-        if media_type == "Video":
-            stream_kwargs["video_parameters"] = VideoQuality.HD_360p
-        else:
-            stream_kwargs["video_flags"] = MediaStream.Flags.IGNORE
+    ydl_params = (
+        f"--cookies {cookie} "
+        "-f bestaudio "
+        "--extractor-args youtube:player_client=android"
+    )
 
-        return MediaStream(**stream_kwargs)
+    stream_kwargs = {
+        "media_path": url,
+        "audio_parameters": AudioQuality.MEDIUM,
+        "ytdlp_parameters": ydl_params,
+    }
+
+    if media_type == "Video":
+        stream_kwargs["video_parameters"] = VideoQuality.HD_360p
+    else:
+        stream_kwargs["video_flags"] = MediaStream.Flags.IGNORE
+
+    return MediaStream(**stream_kwargs)
 
     def get_active_call(self, chat_id, user_id):
         return self.active_calls.get((chat_id, user_id))
