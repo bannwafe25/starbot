@@ -17,174 +17,133 @@ from helpers import Bing, Emoji, Tools, animate_proses
 from logs import logger
 from datetime import datetime
 
-async def get_profile_photo(client, user_id):
+QUOTE_API = "https://brat.siputzx.my.id/quoted"
+
+
+async def get_user_photo_url(client, user):
     try:
-        async for photo in client.get_chat_photos(
-            chat_id=user_id,
-            limit=1
-        ):
-            file_path = await client.download_media(
-                photo.file_id
-            )
+        photo = await client.get_chat(user.id)
 
-            if not file_path:
-                break
+        if not photo.photo:
+            return ""
 
-            photo_url = await Tools.upload_thumb(
-                file_path
-            )
+        file = await client.download_media(
+            photo.photo.big_file_id,
+            file_name=f"pp_{user.id}.jpg"
+        )
 
-            if os.path.exists(file_path):
-                os.remove(file_path)
+        url = await Tools.upload_thumb(file)
 
-            return photo_url
+        if os.path.exists(file):
+            os.remove(file)
 
-    except Exception as e:
-        logger.error(f"GET PROFILE PHOTO ERROR: {e}")
+        return url
 
-    return "https://dummyimage.com/100x100"
-
+    except Exception:
+        return ""
 
 async def quote_cmd(client, message):
-    em = Emoji(client)
-    await em.get()
-
-    command = message.command[0]
-
-    prompt = client.get_text(message)
-
-    if not prompt and message.reply_to_message:
-        prompt = (
-            message.reply_to_message.text
-            or message.reply_to_message.caption
-        )
-
-    if not prompt:
+    if not message.reply_to_message:
         return await message.reply(
-            f"{em.gagal}**Silakan balas pesan atau masukkan teks!**\n"
-            f"Contoh: `{command} Halo dunia`"
+            "❌ Reply pesan yang ingin dijadikan quote."
+        )
+
+    proses = await message.reply("⏳ Processing quote...")
+
+    reply = message.reply_to_message
+    text = reply.text or reply.caption
+
+    if not text:
+        return await proses.edit(
+            "❌ Pesan tidak memiliki teks."
+        )
+
+    user = reply.from_user
+
+    if user:
+        name = user.first_name or "Unknown"
+        if user.last_name:
+            name += f" {user.last_name}"
+        user_id = user.id
+    else:
+        name = "Anonymous"
+        user_id = 0
+
+
+    # Ambil PP user
+    photo_url = ""
+    if user:
+        photo_url = await get_user_photo_url(
+            client,
+            user
         )
 
 
-    # user target
-    if (
-        message.reply_to_message
-        and message.reply_to_message.from_user
-    ):
-        user = message.reply_to_message.from_user
-
-        user_id = user.id
-        first_name = user.first_name or "User"
-        last_name = user.last_name or ""
-
-    else:
-        user_id = client.me.id
-        first_name = client.me.first_name or "User"
-        last_name = client.me.last_name or ""
-
-
-    full_name = f"{first_name} {last_name}".strip()
-
-
-    proses = await animate_proses(
-        message,
-        em.proses
-    )
+    payload = {
+        "messages": [
+            {
+                "from": {
+                    "id": user_id,
+                    "first_name": name,
+                    "last_name": "",
+                    "name": name,
+                    "photo": {
+                        "url": photo_url
+                    }
+                },
+                "text": text,
+                "entities": [],
+                "avatar": True,
+                "media": {
+                    "url": ""
+                },
+                "mediaType": "",
+                "replyMessage": {
+                    "name": "",
+                    "text": "",
+                    "entities": [],
+                    "chatId": message.chat.id
+                }
+            }
+        ],
+        "backgroundColor": "#292232",
+        "width": 512,
+        "height": 512,
+        "scale": 2,
+        "type": "quote",
+        "format": "webp",
+        "emojiStyle": "apple"
+    }
 
 
     try:
-        # ambil PP telegram
-        photo_url = await get_profile_photo(
-            client,
-            user_id
+        result = requests.post(
+            QUOTE_API,
+            json=payload,
+            timeout=60
         )
 
-
-        payload = {
-            "messages": [
-                {
-                    "from": {
-                        "id": user_id,
-                        "first_name": first_name,
-                        "last_name": last_name,
-                        "name": full_name,
-                        "photo": {
-                            "url": photo_url
-                        }
-                    },
-
-                    "text": prompt,
-                    "entities": [],
-
-                    "avatar": True,
-
-                    "media": {
-                        "url": ""
-                    },
-
-                    "mediaType": "",
-
-                    "replyMessage": {
-                        "name": "",
-                        "text": "",
-                        "entities": [],
-                        "chatId": user_id
-                    }
-                }
-            ],
-
-            "backgroundColor": "#313244",
-            "width": 512,
-            "height": 512,
-            "scale": 2,
-            "type": "quote",
-            "format": "png",
-            "emojiStyle": "apple"
-        }
-
-
-        response = await Tools.fetch.post(
-            "https://brat.siputzx.my.id/quoted",
-            json=payload
-        )
-
-
-        if response.status_code != 200:
-            raise Exception(
-                f"API ERROR {response.status_code}"
+        if result.status_code != 200:
+            return await proses.edit(
+                f"❌ API Error {result.status_code}"
             )
 
 
-        file_path = (
-            f"quote_{uuid.uuid4().hex}.png"
+        img = BytesIO(result.content)
+        img.name = "quote.webp"
+
+
+        await message.reply_photo(
+            img,
+            caption=f"✨ Quote dari {name}"
         )
-
-
-        with open(file_path, "wb") as f:
-            f.write(response.content)
-
-
-        await client.send_photo(
-            chat_id=message.chat.id,
-            photo=file_path,
-            caption=(
-                f"{em.sukses}"
-                f"**Dibuat oleh {client.me.mention}**"
-            )
-        )
-
-
-        if os.path.exists(file_path):
-            os.remove(file_path)
-
 
         await proses.delete()
 
 
-    except Exception as e:
-
+    except Exception:
         await proses.edit(
-            f"{em.gagal}**ERROR:**\n`{e}`"
+            f"❌ Error:\n`{traceback.format_exc()}`"
         )
 
 
