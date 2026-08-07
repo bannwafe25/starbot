@@ -686,14 +686,45 @@ class Tools:
             "download": "imageUrl",
             "file": "png",
         }
+    @staticmethod
+    async def upload_catbox(file_path):
+        try:
+            with open(file_path, "rb") as f:
+                files = {
+                    "fileToUpload": (
+                        os.path.basename(file_path),
+                        f,
+                        "application/octet-stream",
+                    )
+                }
 
+                response = await Tools.fetch.post(
+                    "https://catbox.moe/user/api.php",
+                    data={
+                        "reqtype": "fileupload"
+                    },
+                    files=files,
+                )
+
+            result = response.text.strip()
+
+            if result.startswith("https://"):
+                return result
+
+            logger.error(f"Catbox failed: {result}")
+            return ""
+
+        except Exception as e:
+            logger.error(f"Catbox upload error: {e}")
+            return ""
+        
     @staticmethod
     async def upload_thumb(media):
         media_name = str(uuid4())
         files = {"file": (media_name, open(media, "rb"))}
         response = await Tools.fetch.post(Tools.ENV_URL, files=files)
         response.raise_for_status()
-        return response.text.strip()
+        return response.text().strip()
 
     @staticmethod
     async def interact_with(message):
@@ -740,15 +771,22 @@ class Tools:
 
     @staticmethod
     async def upload_media(message):
-        media = await message.reply_to_message.download()
-        data = Tools.get_file_id(message.reply_to_message)
-        media_name = data.get("file_name") or data.get("file_unique_id")
-        files = {"file": (media_name, open(media, "rb"))}
-        response = await Tools.fetch.post(Tools.ENV_URL, files=files)
-        response.raise_for_status()
-        if media and os.path.exists(media):
-            os.remove(media)
-        return response.text
+        try:
+            if not message.reply_to_message:
+                return ""
+
+            media = await message.reply_to_message.download()
+
+            url = await Tools.upload_catbox(media)
+
+            if media and os.path.exists(media):
+                os.remove(media)
+
+            return url
+
+        except Exception as e:
+            logger.error(f"Catbox upload media error: {e}")
+            return ""
 
     @staticmethod
     async def maelyn_upload(message):
@@ -1175,24 +1213,17 @@ class Tools:
     def get_msg_entities(message) -> List[dict]:
         entities = []
 
-        if message.entities:
-            entities.extend(
+        msg_entities = message.entities or message.caption_entities or []
+
+        for entity in msg_entities:
+            entities.append(
                 {
                     "type": entity.type.name.lower(),
                     "offset": entity.offset,
                     "length": entity.length,
                 }
-                for entity in message.entities
             )
-        elif message.caption_entities:
-            entities.extend(
-                {
-                    "type": entity.type.name.lower(),
-                    "offset": entity.offset,
-                    "length": entity.length,
-                }
-                for entity in message.entities
-            )
+
         return entities
 
     @staticmethod
