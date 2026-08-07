@@ -13,142 +13,133 @@ from io import BytesIO
 from PIL import Image
 from pyrogram import Client, filters
 from pyrogram.types import InputMediaPhoto
+from pyrogram.types import Message
 from helpers import Bing, Emoji, Tools, animate_proses
 from logs import logger
 from datetime import datetime
 
-async def quote_cmd(client, message):
-    if not message.reply_to_message:
-        return await message.reply(
-            "❌ Balas pesan terlebih dahulu.\nContoh: `.q`"
-        )
-
-    reply = message.reply_to_message
-    user = reply.from_user
-
-    if not user:
-        return await message.reply(
-            "❌ Pesan tidak memiliki informasi user."
-        )
-
-    avatar_url = ""
-
-    # Ambil foto profil user
-    try:
-        async for photo in client.get_chat_photos(
-            user.id,
-            limit=1
-        ):
-            path = await client.download_media(
-                photo,
-                file_name=f"avatar_{user.id}.jpg"
-            )
-
-            avatar_url = await Tools.upload_catbox(path)
-
-            if os.path.exists(path):
-                os.remove(path)
-
-            break
-
-    except Exception as e:
-        logger.error(
-            f"Quote avatar error: {e}"
-        )
-
-
-    text = (
-        reply.text
-        or reply.caption
-        or "Media"
+async def upload_to_telegraph(file_bytes: io.BytesIO) -> str:
+    url = "https://telegra.ph/upload"
+    form = aiohttp.FormData()
+    form.add_field(
+        'file', 
+        file_bytes.getvalue(), 
+        filename='pfp.jpg', 
+        content_type='image/jpeg'
     )
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, data=form) as response:
+                if response.status == 200:
+                    res = await response.json()
+                    # Menggabungkan host dengan path yang dikembalikan
+                    return f"https://telegra.ph{res[0]['src']}"
+    except Exception:
+        pass
+    
+    return "" # Kembalikan string kosong jika gagal agar quotly tetap jadi (tanpa avatar)
 
+async def quote_cmd(client: Client, message: Message):
+    if not message.reply_to_message:
+        await message.edit_text("❌ Silakan balas pesan yang ingin dijadikan stiker quotly.")
+        return
 
+    await message.edit_text("⏳ *Mengambil foto profil & memproses quotly...*")
+    reply = message.reply_to_message
+    
+    text = reply.text or reply.caption
+    if not text:
+        await message.edit_text("❌ Pesan yang dibalas tidak memiliki teks.")
+        return
+
+    sender = reply.from_user
+    sender_chat = reply.sender_chat
+    
+    sender_name = "Unknown"
+    sender_id = 1
+    pfp_url = ""
+
+    # 1. Logika jika pesan dikirim oleh User/Pengguna
+    if sender:
+        sender_id = sender.id
+        first_name = sender.first_name or ""
+        last_name = sender.last_name or ""
+        sender_name = f"{first_name} {last_name}".strip()
+        
+        # Unduh & Upload foto profil pengguna
+        if sender.photo:
+            try:
+                # Unduh ke memory RAM (bukan ke disk)
+                pfp_bytes = await client.download_media(sender.photo.big_file_id, in_memory=True)
+                if pfp_bytes:
+                    pfp_url = await upload_to_telegraph(pfp_bytes)
+            except Exception:
+                pass # Abaikan jika gagal mengambil PFP
+
+    # 2. Logika jika pesan dikirim oleh Channel (Kanal) atau Anonymous Admin
+    elif sender_chat:
+        sender_id = sender_chat.id
+        sender_name = sender_chat.title or "Unknown"
+        
+        # Unduh & Upload foto profil channel
+        if sender_chat.photo:
+            try:
+                pfp_bytes = await client.download_media(sender_chat.photo.big_file_id, in_memory=True)
+                if pfp_bytes:
+                    pfp_url = await upload_to_telegraph(pfp_bytes)
+            except Exception:
+                pass
+
+    # 3. Payload untuk API Quotly
     payload = {
-        "messages": [
-            {
-                "from": {
-                    "id": user.id,
-                    "first_name": user.first_name or "User",
-                    "last_name": user.last_name or "",
-                    "name": "",
-                    "photo": {
-                        "url": avatar_url
-                    }
-                },
-                "text": text,
-                "entities": Tools.get_msg_entities(reply),
-                "avatar": bool(avatar_url),
-                "media": {
-                    "url": ""
-                },
-                "mediaType": "",
-                "replyMessage": {
-                    "name": "",
-                    "text": "",
-                    "entities": [],
-                    "chatId": message.chat.id
-                }
-            }
-        ],
+        "type": "quote",
+        "format": "webp",
         "backgroundColor": "#292232",
         "width": 512,
         "height": 512,
         "scale": 2,
-        "type": "quote",
-        "format": "png",
-        "emojiStyle": "apple"
+        "messages": [
+            {
+                "entities": [],
+                "avatar": True,
+                "from": {
+                    "id": sender_id,
+                    "name": sender_name,
+                    "photo": {
+                        "url": pfp_url # Sekarang URL berisi link dari Telegraph
+                    }
+                },
+                "text": text,
+                "replyMessage": {}
+            }
+        ]
     }
 
-
+    # 4. Request ke API
+    api_url = "https://brat.siputzx.my.id/quoted"
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.post(
-                "https://brat.siputzx.my.id/quoted",
-                json=payload
-            ) as resp:
-
-                if resp.status != 200:
-                    return await message.reply(
-                        "❌ Gagal membuat quote."
-                    )
-
-                image = await resp.read()
-
-
-        # PNG -> WEBP Sticker
-        img = Image.open(
-            io.BytesIO(image)
-        ).convert("RGBA")
-
-        img.thumbnail(
-            (512, 512)
-        )
-
-        sticker = io.BytesIO()
-        sticker.name = "quote.webp"
-
-        img.save(
-            sticker,
-            "WEBP",
-            quality=95,
-            method=6
-        )
-
-        sticker.seek(0)
-
-        await message.reply_sticker(
-            sticker
-        )
-
+            async with session.post(api_url, json=payload) as response:
+                if response.status != 200:
+                    await message.edit_text(f"❌ Gagal mengambil data dari API (Status: {response.status})")
+                    return
+                
+                image_bytes = await response.read()
+                
+                sticker = io.BytesIO(image_bytes)
+                sticker.name = "quotly.webp"
+                
+                # 5. Kirim stiker
+                await client.send_sticker(
+                    chat_id=message.chat.id,
+                    sticker=sticker,
+                    reply_to_message_id=reply.id
+                )
+                await message.delete() # Hapus pesan loading
+                
     except Exception as e:
-        logger.error(
-            f"Quote error: {e}"
-        )
-
-        await message.reply(
-            f"❌ Error: {e}"
-        )
+        await message.edit_text(f"❌ Terjadi kesalahan:\n`{str(e)}`")
 
 
 async def brat_cmd(client, message):
