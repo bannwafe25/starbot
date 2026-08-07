@@ -7,7 +7,7 @@ __HELP__ = """<blockquote>Command Help **Deepseek**</blockquote>
 <b>   {1}</b>
 """
 
-from command import deepseek_cmd
+from command import claude_cmd
 from helpers import CMD
 
 IS_PRO = True
