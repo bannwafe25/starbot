@@ -77,8 +77,8 @@ API_BOTCHAX = os.environ.get(
     None,
 )
 
-GROOQ_API_KEY = os.environ.get(
-    "GROOQ_API_KEY",
+GROQ_API_KEY = os.environ.get(
+    "GROQ_API_KEY",
     None,
 )
 
