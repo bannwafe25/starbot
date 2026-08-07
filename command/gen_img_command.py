@@ -25,21 +25,21 @@ async def quote_cmd(client: Client, message: Message):
         await message.edit_text("❌ Silakan *reply* ke pesan yang ingin dijadikan Quotly.")
         return
 
-    # 1. Parsing Warna
+    # Kustomisasi warna background (contoh: .q red atau .q #1b1429)
     bg_color = "#1b1429" 
     if len(message.command) > 1:
         bg_color = message.command[1]
 
-    progress = await message.edit_text(f"⏳ [1/4] Menyiapkan data... (Warna: {bg_color})")
+    progress = await message.edit_text("⏳ Sedang merender Quotly...")
 
-    # 2. Ambil Data Pengguna
+    # 1. Ambil Data Pengguna Target
     user = reply.from_user or reply.sender_chat
+    user_id = user.id if user else 1
     first_name = user.first_name if hasattr(user, 'first_name') and user.first_name else (user.title or "User")
     last_name = user.last_name if hasattr(user, 'last_name') and user.last_name else ""
     username = user.username if hasattr(user, 'username') and user.username else ""
 
-    # 3. Ambil Foto Profil
-    await progress.edit_text("⏳ [2/4] Mengunduh foto profil...")
+    # 2. Ambil Foto Profil (Ubah ke Base64 Data URI)
     avatar_url = f"https://ui-avatars.com/api/?name={first_name.replace(' ', '+')}&background=random"
     if user and hasattr(user, 'photo') and user.photo:
         try:
@@ -49,94 +49,83 @@ async def quote_cmd(client: Client, message: Message):
         except Exception as e:
             print(f"Gagal mengunduh foto profil: {e}")
 
-    text = reply.text or reply.caption or ""
+    text_content = reply.text or reply.caption or ""
 
-    # 4. Susun Payload Standar LyoSU
-    message_data = {
-        "from": {
-            "id": user.id if user else 1,
-            "first_name": first_name,
-            "last_name": last_name,
-            "username": username,
-            "photo": { "url": avatar_url }
-        },
-        "text": text,
-        "avatar": True,
-        "entities": [] 
+    # 3. Susun Objek "from" Sesuai Format Standar LyoSU
+    from_data = {
+        "id": user_id,
+        "first_name": first_name,
+        "last_name": last_name,
+        "username": username,
+        "photo": { "url": avatar_url }
     }
 
+    # 4. Handle Reply Message Jika Ada
+    reply_message_data = None
     if reply.reply_to_message:
-        replied_to = reply.reply_to_message
-        r_user = replied_to.from_user or replied_to.sender_chat
-        r_first_name = r_user.first_name if hasattr(r_user, 'first_name') and r_user.first_name else (r_user.title or "User")
-        r_last_name = r_user.last_name if hasattr(r_user, 'last_name') and r_user.last_name else ""
+        r_msg = reply.reply_to_message
+        r_user = r_msg.from_user or r_msg.sender_chat
+        r_id = r_user.id if r_user else 123456789
+        r_fname = r_user.first_name if hasattr(r_user, 'first_name') and r_user.first_name else (r_user.title or "User")
+        r_lname = r_user.last_name if hasattr(r_user, 'last_name') and r_user.last_name else ""
         
-        message_data["replyMessage"] = {
-            "name": f"{r_first_name} {r_last_name}".strip(),
-            "text": replied_to.text or replied_to.caption or "🖼 Media",
-            "chatId": r_user.id if r_user else 0,
+        reply_message_data = {
+            "name": f"{r_fname} {r_lname}".strip(),
+            "text": r_msg.text or r_msg.caption or "🖼 Media",
             "entities": [],
+            "chatId": r_id,
             "from": {
-                "id": r_user.id if r_user else 0,
-                "first_name": r_first_name,
-                "last_name": r_last_name,
-                "username": r_user.username if hasattr(r_user, 'username') and r_user.username else ""
+                "id": r_id,
+                "name": f"{r_fname} {r_lname}".strip(),
+                "photo": { "url": f"https://ui-avatars.com/api/?name={r_fname.replace(' ', '+')}&background=random" }
             }
         }
 
-        payload = {
+    message_object = {
+        "from": from_data,
+        "text": text_content,
+        "entities": [],
+        "avatar": True
+    }
+
+    if reply_message_data:
+        message_object["replyMessage"] = reply_message_data
+
+    # 5. Susun Payload Akhir
+    payload = {
         "backgroundColor": bg_color,
         "width": 512,
         "height": 768,
         "scale": 2,
         "emojiBrand": "apple",
-        "messages": [message_data]
+        "messages": [message_object]
     }
 
-
-    # 5. Eksekusi Request ke API
-    await progress.edit_text("⏳ [3/4] Menghubungi API Quotly...")
+    # 6. Eksekusi Request ke Endpoint Target Anda
     try:
         headers = {
             "Content-Type": "application/json",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
         }
         
-        async with httpx.AsyncClient(timeout=20.0) as http_client:
-            # PERUBAHAN DISINI: Hapus '/quote' di tengah URL
+        async with httpx.AsyncClient(timeout=25.0) as http_client:
             response = await http_client.post(
                 "https://quote.yuri.ly/quote/generate.webp", 
                 json=payload, 
                 headers=headers
             )
             
-            # (Sisa kodenya sama seperti sebelumnya...)
             if response.status_code != 200:
                 await progress.edit_text(f"❌ API Error ({response.status_code}):\n`{response.text[:100]}`")
                 return
 
-            res_data = response.json()
-            if "error" in res_data:
-                await progress.edit_text(f"❌ Error Server: `{res_data['error']}`")
-                return
-            
-            if "image" not in res_data:
-                await progress.edit_text("❌ API tidak mengembalikan data gambar yang valid.")
-                return
-
-            await progress.edit_text("⏳ [4/4] Memproses stiker...")
-            
-            # Decode Base64
-            image_bytes = base64.b64decode(res_data["image"])
-            sticker_data = BytesIO(image_bytes)
+            # Karena menggunakan endpoint .webp, data biner langsung diproses ke BytesIO
+            sticker_data = BytesIO(response.content)
             sticker_data.name = "quotly.webp" 
 
-            # Kirim stiker dan hapus pesan progress
             await message.reply_sticker(sticker=sticker_data)
             await progress.delete()
 
-    except httpx.ReadTimeout:
-        await progress.edit_text("❌ Timeout: API memakan waktu terlalu lama untuk merespons.")
     except Exception as e:
         await progress.edit_text(f"❌ Terjadi kesalahan: `{e}`")
 
