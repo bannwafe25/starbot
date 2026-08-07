@@ -108,12 +108,14 @@ async def quote_cmd(client: Client, message: Message):
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
         }
         
-        async with httpx.AsyncClient(timeout=25.0) as http_client:
+                async with httpx.AsyncClient(timeout=25.0) as http_client:
+            # Perbaiki path endpoint tanpa '/quote/' di tengahnya
             response = await http_client.post(
-                "https://quote.yuri.ly/quote/generate.webp", 
+                "https://quote.yuri.ly/generate.webp", 
                 json=payload, 
                 headers=headers
             )
+
             
             if response.status_code != 200:
                 await progress.edit_text(f"❌ API Error ({response.status_code}):\n`{response.text[:100]}`")
