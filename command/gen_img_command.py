@@ -22,20 +22,17 @@ QUOTE_API = "https://brat.siputzx.my.id/quoted"
 
 async def get_user_photo_url(client, user):
     try:
-        photo = await client.get_chat(user.id)
+        chat = await client.get_chat(user.id)
 
-        if not photo.photo:
+        if not chat.photo:
             return ""
 
         file = await client.download_media(
-            photo.photo.big_file_id,
+            chat.photo.big_file_id,
             file_name=f"pp_{user.id}.jpg"
         )
 
         url = await Tools.upload_thumb(file)
-
-        if os.path.exists(file):
-            os.remove(file)
 
         return url
 
@@ -48,7 +45,9 @@ async def quote_cmd(client, message):
             "❌ Reply pesan yang ingin dijadikan quote."
         )
 
-    proses = await message.reply("⏳ Processing quote...")
+    proses = await message.reply(
+        "⏳ Processing quote..."
+    )
 
     reply = message.reply_to_message
     text = reply.text or reply.caption
@@ -62,9 +61,12 @@ async def quote_cmd(client, message):
 
     if user:
         name = user.first_name or "Unknown"
+
         if user.last_name:
             name += f" {user.last_name}"
+
         user_id = user.id
+
     else:
         name = "Anonymous"
         user_id = 0
@@ -72,6 +74,7 @@ async def quote_cmd(client, message):
 
     # Ambil PP user
     photo_url = ""
+
     if user:
         photo_url = await get_user_photo_url(
             client,
@@ -123,20 +126,44 @@ async def quote_cmd(client, message):
             timeout=60
         )
 
+
         if result.status_code != 200:
             return await proses.edit(
                 f"❌ API Error {result.status_code}"
             )
 
 
-        img = BytesIO(result.content)
-        img.name = "quote.webp"
+        # Convert hasil quote ke sticker Telegram
+        sticker = BytesIO()
+        sticker.name = "quote.webp"
 
 
-        await message.reply_photo(
-            img,
-            caption=f"✨ Quote dari {name}"
+        image = Image.open(
+            BytesIO(result.content)
         )
+
+
+        # Telegram sticker max 512x512
+        image.thumbnail(
+            (512, 512)
+        )
+
+
+        image.save(
+            sticker,
+            "WEBP",
+            lossless=True,
+            quality=100
+        )
+
+
+        sticker.seek(0)
+
+
+        await message.reply_sticker(
+            sticker
+        )
+
 
         await proses.delete()
 
