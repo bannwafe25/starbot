@@ -17,44 +17,72 @@ from helpers import Bing, Emoji, Tools, animate_proses
 from logs import logger
 from datetime import datetime
 
+async def get_profile_photo(client, user_id):
+    try:
+        async for photo in client.get_chat_photos(user_id, limit=1):
+            path = await client.download_media(photo.file_id)
+
+            url = await Tools.upload_thumb(path)
+
+            if os.path.exists(path):
+                os.remove(path)
+
+            return url
+
+    except Exception:
+        pass
+
+    return "https://dummyimage.com/100x100"
+
+
 async def quote_cmd(client, message):
     em = Emoji(client)
     await em.get()
 
     command = message.command[0]
 
-    # Ambil teks dari argumen teks langsung atau dari pesan yang di-reply
     prompt = client.get_text(message)
+
     if not prompt and message.reply_to_message:
         reply_msg = message.reply_to_message
         prompt = reply_msg.text or reply_msg.caption
 
-    # Jika tidak ada teks sama sekali
     if not prompt:
         return await message.reply(
             f"{em.gagal}**Silakan balas sebuah pesan atau masukkan teks!**\n"
             f"Contoh: `{command} Jangan menyerah`"
         )
 
-    # Tentukan data pengirim berdasarkan reply atau akun sendiri
     if message.reply_to_message and message.reply_to_message.from_user:
         sender = message.reply_to_message.from_user
+
         user_id = sender.id
         first_name = sender.first_name or "User"
         last_name = sender.last_name or ""
+
         full_name = f"{first_name} {last_name}".strip()
+
     else:
         user_id = client.me.id
         first_name = client.me.first_name or "User"
         last_name = client.me.last_name or ""
+
         full_name = client.me.full_name or first_name
+
 
     proses = await animate_proses(message, em.proses)
 
     try:
+        # ambil foto profil asli
+        photo_url = await get_profile_photo(
+            client,
+            user_id
+        )
+
+
         url = "https://brat.siputzx.my.id/quoted"
 
-        # Susun payload JSON POST sesuai struktur API quoted
+
         payload = {
             "messages": [
                 {
@@ -63,13 +91,24 @@ async def quote_cmd(client, message):
                         "first_name": first_name,
                         "last_name": last_name,
                         "name": full_name,
-                        "photo": {"url": "https://dummyimage.com/100x100"}
+
+                        # PP asli
+                        "photo": {
+                            "url": photo_url
+                        }
                     },
+
                     "text": prompt,
                     "entities": [],
+
                     "avatar": True,
-                    "media": {"url": ""},
+
+                    "media": {
+                        "url": ""
+                    },
+
                     "mediaType": "",
+
                     "replyMessage": {
                         "name": "",
                         "text": "",
@@ -78,6 +117,7 @@ async def quote_cmd(client, message):
                     }
                 }
             ],
+
             "backgroundColor": "#313244",
             "width": 512,
             "height": 512,
@@ -87,21 +127,24 @@ async def quote_cmd(client, message):
             "emojiStyle": "apple"
         }
 
-        # Gunakan method POST dengan JSON payload
+
         response = await Tools.fetch.post(
             url,
             json=payload
         )
+
 
         if response.status_code != 200:
             raise Exception(
                 f"Kesalahan API: {response.status_code}"
             )
 
+
         content_type = response.headers.get(
             "Content-Type",
             ""
         )
+
 
         if "webp" in content_type:
             ext = "webp"
@@ -110,18 +153,21 @@ async def quote_cmd(client, message):
         else:
             ext = "png"
 
+
         file_path = f"quoted_{uuid.uuid4().hex}.{ext}"
+
 
         with open(file_path, "wb") as f:
             f.write(response.content)
 
-        # Kirim hasil sebagai dokumen/stiker tergantung formatnya
+
         if ext == "webp":
             await client.send_document(
                 chat_id=message.chat.id,
                 document=file_path,
                 caption=f"{em.sukses}**Dibuat oleh {client.me.mention}**"
             )
+
         else:
             await client.send_photo(
                 chat_id=message.chat.id,
@@ -129,10 +175,14 @@ async def quote_cmd(client, message):
                 caption=f"{em.sukses}**Dibuat oleh {client.me.mention}**"
             )
 
+
         os.remove(file_path)
+
         await proses.delete()
 
+
     except Exception as e:
+
         await proses.edit(
             f"{em.gagal}**TERJADI KESALAHAN:**\n`{e}`"
         )
