@@ -17,12 +17,12 @@ async def blackbox_request(messages):
     }
 
     payload = {
-        "model": "blackboxai/x-ai/grok-code-fast-1:free",
+        "model": "xai/grok-4.5",
         "messages": messages,
         "temperature": 0.3,
-        "max_tokens": 512
+        "max_tokens": 512,
+        "stream": False
     }
-
 
     for retry in range(2):
 
@@ -32,27 +32,17 @@ async def blackbox_request(messages):
             json=payload
         )
 
-
         if r.status_code == 200:
-
             data = r.json()
-
             return data["choices"][0]["message"]["content"]
 
-
         if r.status_code == 429:
-
-            await asyncio.sleep(
-                5
-            )
-
+            await asyncio.sleep(5)
             continue
-
 
         raise Exception(
             f"BlackBox Error {r.status_code}: {r.text}"
         )
-
 
     return "⚠️ AI sedang limit, coba lagi nanti."
 
