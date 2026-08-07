@@ -693,7 +693,7 @@ class Tools:
         files = {"file": (media_name, open(media, "rb"))}
         response = await Tools.fetch.post(Tools.ENV_URL, files=files)
         response.raise_for_status()
-        return response.text().strip()
+        return response.text.strip()
 
     @staticmethod
     async def interact_with(message):
