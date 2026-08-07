@@ -77,6 +77,11 @@ API_BOTCHAX = os.environ.get(
     None,
 )
 
+GROOQ_API_KEY = os.environ.get(
+    "GROOQ_API_KEY",
+    None,
+)
+
 API_BLACKBOX = os.environ.get(
     "API_BLACKBOX",
     None,
