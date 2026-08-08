@@ -4,7 +4,7 @@ from groq import Groq
 from pyrogram.enums import ParseMode
 
 from config import GROQ_API_KEY
-from helpers.emoji import Emoji
+from helpers import Emoji
 
 
 groq = Groq(api_key=GROQ_API_KEY)
