@@ -20,113 +20,175 @@ from logs import logger
 from datetime import datetime
 
 async def quote_cmd(client: Client, message: Message):
+    em = Emoji(client)
+    await em.get()
+
     reply = message.reply_to_message
     if not reply:
-        await message.edit_text("❌ Silakan *reply* ke pesan yang ingin dijadikan Quotly.")
+        await message.edit_text(
+            f"{em.gagal} Silakan *reply* ke pesan yang ingin dijadikan Quotly."
+        )
         return
 
-    # Kustomisasi warna background (contoh: .q red atau .q #1b1429)
-    bg_color = "#1b1429" 
+    # Custom background color
+    bg_color = "#1b1429"
     if len(message.command) > 1:
         bg_color = message.command[1]
 
-    progress = await message.edit_text("⏳ Sedang merender Quotly...")
+    progress = await message.edit_text(
+        f"{em.proses} Sedang merender Quotly..."
+    )
 
-    # 1. Ambil Data Pengguna Target
-    user = reply.from_user or reply.sender_chat
-    user_id = user.id if user else 1
-    first_name = user.first_name if hasattr(user, 'first_name') and user.first_name else (user.title or "User")
-    last_name = user.last_name if hasattr(user, 'last_name') and user.last_name else ""
-    username = user.username if hasattr(user, 'username') and user.username else ""
+    try:
+        # 1. Data user target
+        user = reply.from_user or reply.sender_chat
 
-    # 2. Ambil Foto Profil (Ubah ke Base64 Data URI)
-    avatar_url = f"https://ui-avatars.com/api/?name={first_name.replace(' ', '+')}&background=random"
-    if user and hasattr(user, 'photo') and user.photo:
-        try:
-            photo_bytes = await client.download_media(user.photo.big_file_id, in_memory=True)
-            if photo_bytes:
-                avatar_url = f"data:image/jpeg;base64,{base64.b64encode(photo_bytes.getvalue()).decode('utf-8')}"
-        except Exception as e:
-            print(f"Gagal mengunduh foto profil: {e}")
+        user_id = user.id if user else 1
+        first_name = (
+            user.first_name
+            if hasattr(user, "first_name") and user.first_name
+            else (user.title or "User")
+        )
+        last_name = (
+            user.last_name
+            if hasattr(user, "last_name") and user.last_name
+            else ""
+        )
+        username = (
+            user.username
+            if hasattr(user, "username") and user.username
+            else ""
+        )
 
-    text_content = reply.text or reply.caption or ""
+        # 2. Foto profil
+        avatar_url = (
+            f"https://ui-avatars.com/api/?name={first_name.replace(' ', '+')}"
+            "&background=random"
+        )
 
-    # 3. Susun Objek "from" Sesuai Format Standar LyoSU
-    from_data = {
-        "id": user_id,
-        "first_name": first_name,
-        "last_name": last_name,
-        "username": username,
-        "photo": { "url": avatar_url }
-    }
+        if user and hasattr(user, "photo") and user.photo:
+            try:
+                photo_bytes = await client.download_media(
+                    user.photo.big_file_id,
+                    in_memory=True
+                )
 
-    # 4. Handle Reply Message Jika Ada
-    reply_message_data = None
-    if reply.reply_to_message:
-        r_msg = reply.reply_to_message
-        r_user = r_msg.from_user or r_msg.sender_chat
-        r_id = r_user.id if r_user else 123456789
-        r_fname = r_user.first_name if hasattr(r_user, 'first_name') and r_user.first_name else (r_user.title or "User")
-        r_lname = r_user.last_name if hasattr(r_user, 'last_name') and r_user.last_name else ""
-        
-        reply_message_data = {
-            "name": f"{r_fname} {r_lname}".strip(),
-            "text": r_msg.text or r_msg.caption or "🖼 Media",
-            "entities": [],
-            "chatId": r_id,
-            "from": {
-                "id": r_id,
-                "name": f"{r_fname} {r_lname}".strip(),
-                "photo": { "url": f"https://ui-avatars.com/api/?name={r_fname.replace(' ', '+')}&background=random" }
+                if photo_bytes:
+                    avatar_url = (
+                        "data:image/jpeg;base64,"
+                        f"{base64.b64encode(photo_bytes.getvalue()).decode()}"
+                    )
+
+            except Exception:
+                pass
+
+        text_content = reply.text or reply.caption or ""
+
+        # 3. Data pengirim
+        from_data = {
+            "id": user_id,
+            "first_name": first_name,
+            "last_name": last_name,
+            "username": username,
+            "photo": {
+                "url": avatar_url
             }
         }
 
-    message_object = {
-        "from": from_data,
-        "text": text_content,
-        "entities": [],
-        "avatar": True
-    }
+        # 4. Reply message
+        reply_message_data = None
 
-    if reply_message_data:
-        message_object["replyMessage"] = reply_message_data
+        if reply.reply_to_message:
+            r_msg = reply.reply_to_message
+            r_user = r_msg.from_user or r_msg.sender_chat
 
-    # 5. Susun Payload Akhir
-    payload = {
-        "backgroundColor": bg_color,
-        "width": 512,
-        "height": 768,
-        "scale": 2,
-        "emojiBrand": "apple",
-        "messages": [message_object]
-    }
+            r_id = r_user.id if r_user else 123456789
 
-    # 6. Eksekusi Request ke Endpoint Target (Menggunakan /generate.webp)
-    try:
+            r_fname = (
+                r_user.first_name
+                if hasattr(r_user, "first_name") and r_user.first_name
+                else (r_user.title or "User")
+            )
+
+            r_lname = (
+                r_user.last_name
+                if hasattr(r_user, "last_name") and r_user.last_name
+                else ""
+            )
+
+            reply_message_data = {
+                "name": f"{r_fname} {r_lname}".strip(),
+                "text": r_msg.text or r_msg.caption or "🖼 Media",
+                "entities": [],
+                "chatId": r_id,
+                "from": {
+                    "id": r_id,
+                    "name": f"{r_fname} {r_lname}".strip(),
+                    "photo": {
+                        "url": (
+                            "https://ui-avatars.com/api/?name="
+                            f"{r_fname.replace(' ', '+')}"
+                            "&background=random"
+                        )
+                    }
+                }
+            }
+
+        message_object = {
+            "from": from_data,
+            "text": text_content,
+            "entities": [],
+            "avatar": True
+        }
+
+        if reply_message_data:
+            message_object["replyMessage"] = reply_message_data
+
+        # 5. Payload
+        payload = {
+            "backgroundColor": bg_color,
+            "width": 512,
+            "height": 768,
+            "scale": 2,
+            "emojiBrand": "apple",
+            "messages": [
+                message_object
+            ]
+        }
+
+        # 6. Generate
         headers = {
             "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+            "User-Agent": "Mozilla/5.0"
         }
-        
+
         async with httpx.AsyncClient(timeout=25.0) as http_client:
             response = await http_client.post(
-                "https://quote.yuri.ly/generate.webp", 
-                json=payload, 
+                "https://quote.yuri.ly/generate.webp",
+                json=payload,
                 headers=headers
             )
-            
-            if response.status_code != 200:
-                await progress.edit_text(f"❌ API Error ({response.status_code}):\n`{response.text[:100]}`")
-                return
 
-            sticker_data = BytesIO(response.content)
-            sticker_data.name = "quotly.webp" 
+        if response.status_code != 200:
+            await progress.edit_text(
+                f"{em.gagal} API Error ({response.status_code}):\n"
+                f"`{response.text[:100]}`"
+            )
+            return
 
-            await message.reply_sticker(sticker=sticker_data)
-            await progress.delete()
+        sticker_data = BytesIO(response.content)
+        sticker_data.name = "quotly.webp"
+
+        await message.reply_sticker(
+            sticker=sticker_data
+        )
+
+        await progress.delete()
 
     except Exception as e:
-        await progress.edit_text(f"❌ Terjadi kesalahan: `{e}`")
+        await progress.edit_text(
+            f"{em.gagal} Terjadi kesalahan:\n`{e}`"
+        )
 
 
 async def brat_cmd(client, message):
@@ -186,78 +248,102 @@ async def brat_cmd(client, message):
         await proses.edit(f"{em.gagal}**ERROR:**\n`{e}`")
 
 async def bratv2_cmd(client, message):
+    em = Emoji(client)
+    await em.get()
+
     if not message.reply_to_message:
-        return await message.edit("Balas pesan yang ingin dibuat fake chat iPhone.")
+        return await message.edit(
+            f"{em.gagal} Balas pesan yang ingin dibuat fake chat iPhone."
+        )
 
     reply = message.reply_to_message
 
-    # 1. Menentukan waktu pesan (jam & menit)
-    # Jika pesan memiliki tanggal, gunakan itu. Jika tidak, gunakan waktu saat ini.
-    if reply.date:
-        msg_time = reply.date.strftime("%H.%M")
-    else:
-        msg_time = datetime.now().strftime("%H.%M")
-
-    # 2. Mengekstrak foto jika ada (untuk diisi ke imageUrl)
-    image_url = ""
-    if reply.photo:
-        try:
-            # Unduh foto ke memori dan konversi ke base64 URI
-            photo_file = await client.download_media(reply, in_memory=True)
-            image_url = "data:image/jpeg;base64," + base64.b64encode(photo_file.getvalue()).decode()
-        except Exception:
-            pass # Abaikan jika gagal mengunduh foto
-
-    # 3. Menyiapkan teks
-    text = reply.text or reply.caption or ""
-    
-    # Menghindari error jika pesan hanya berupa media tanpa caption
-    if not text and not image_url:
-        return await message.edit("Pesan tidak mengandung teks atau gambar yang valid.")
-
-    # 4. Membangun Payload JSON
-    payload = {
-        "sender": "other", # "other" (kiri) atau "me" (kanan)
-        "message": text,
-        "imageUrl": image_url, # Berisi base64 gambar jika ada, atau kosong jika tidak
-        "timestamp": msg_time,
-        "time": msg_time,
-        "status": {
-            "carrierName": "INDOSAT OORE...",
-            "batteryPercentage": 88,
-            "signalStrength": 4,
-            "wifi": True
-        },
-        "backgroundUrl": "",
-        "readStatus": True,
-        "emojiStyle": "apple"
-    }
-
-    # 5. Mengirim Request & Mengirim Gambar
     try:
-        await message.edit("⏳ Membuat fake chat iPhone...")
+        # 1. Waktu pesan
+        if reply.date:
+            msg_time = reply.date.strftime("%H.%M")
+        else:
+            msg_time = datetime.now().strftime("%H.%M")
 
+        # 2. Ambil foto jika ada
+        image_url = ""
+
+        if reply.photo:
+            try:
+                photo_file = await client.download_media(
+                    reply,
+                    in_memory=True
+                )
+
+                image_url = (
+                    "data:image/jpeg;base64,"
+                    f"{base64.b64encode(photo_file.getvalue()).decode()}"
+                )
+
+            except Exception:
+                pass
+
+        # 3. Teks pesan
+        text = reply.text or reply.caption or ""
+
+        if not text and not image_url:
+            return await message.edit(
+                f"{em.gagal} Pesan tidak mengandung teks atau gambar yang valid."
+            )
+
+        payload = {
+            "sender": "other",
+            "message": text,
+            "imageUrl": image_url,
+            "timestamp": msg_time,
+            "time": msg_time,
+            "status": {
+                "carrierName": "INDOSAT OORE...",
+                "batteryPercentage": 88,
+                "signalStrength": 4,
+                "wifi": True
+            },
+            "backgroundUrl": "",
+            "readStatus": True,
+            "emojiStyle": "apple"
+        }
+
+        progress = await message.edit(
+            f"{em.proses} Membuat fake chat iPhone..."
+        )
+
+        # 4. Request API
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 "https://brat.siputzx.my.id/v2/iphone-quoted",
                 json=payload,
                 timeout=60
             ) as r:
+
                 if r.status != 200:
                     error_text = await r.text()
-                    return await message.edit(f"Gagal membuat fake chat:\n{error_text}")
-                
+
+                    return await progress.edit(
+                        f"{em.gagal} Gagal membuat fake chat:\n"
+                        f"`{error_text[:200]}`"
+                    )
+
                 content = await r.read()
 
-        # Output fake chat biasanya lebih cocok dikirim sebagai Foto (screenshot) bukan Stiker WEBP
         img_io = BytesIO(content)
         img_io.name = "iphone_fakechat.png"
 
-        await message.reply_photo(img_io)
-        await message.delete()
+        await message.reply_photo(
+            img_io,
+            caption=f"{em.sukses} Fake chat berhasil dibuat."
+        )
+
+        await progress.delete()
 
     except Exception as e:
-        await message.edit(f"Error: {e}")
+        await message.edit(
+            f"{em.gagal} Error:\n`{e}`"
+        )
 
 async def bingimg_cmd(client, message):
     emo = Emoji(client)
