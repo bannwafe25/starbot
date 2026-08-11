@@ -67,11 +67,11 @@ class StreamingTools:
         return urllib.parse.urlunparse(parsed)
 
     async def run_stream(self, link, media_type):
-        url = self.sanitize_url(link)
+    url = self.sanitize_url(link)
 
     ydl_params = (
         f"--cookies {cookies()} "
-        "--extractor-args \"youtube:player_client=android\" "
+        '--extractor-args "youtube:player_client=android" '
         "-f bestaudio/best "
         "--no-playlist"
     )
