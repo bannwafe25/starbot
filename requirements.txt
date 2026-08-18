@@ -72,6 +72,5 @@ groq
 git+https://github.com/zpkemem-code/callgram.git@master
 git+https://github.com/googleapis/python-genai.git@main
 git+https://github.com/FerlyKurniawan/pyrofork
-sepgram @ git+https://github.com/iyann1255/sepgram@v2.0.230
 git+https://github.com/FerlyKurniawan/hydrogram@dev
 
